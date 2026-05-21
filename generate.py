@@ -26,7 +26,9 @@ BASE = "https://api.omnisend.com"
 
 # ─── API helpers ──────────────────────────────────────────────────────────────
 def headers(key):
-    return {"X-API-KEY": key, "Content-Type": "application/json"}
+    # Omnisend-Version: first day of current month keeps the header fresh
+    version = datetime.now(timezone.utc).strftime("%Y-%m-01")
+    return {"X-API-KEY": key, "Content-Type": "application/json", "Omnisend-Version": version}
 
 
 def safe_get(url, key, params=None):
