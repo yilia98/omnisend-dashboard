@@ -59,7 +59,7 @@ def safe_get(url, key, params=None):
         r = requests.get(url, headers=_hdrs(key), params=params, timeout=20)
         if r.status_code == 200:
             return r.json()
-        print(f"  GET {url} → {r.status_code}")
+        print(f"  GET {url} → {r.status_code}: {r.text[:200]}")
     except Exception as e:
         print(f"  GET {url} → {e}")
     return {}
@@ -188,24 +188,11 @@ def fetch_automations(key):
 
 
 def fetch_segments(key):
-    """Paginates through all segments (max 50 per page)."""
-    total = 0
-    after = None
-    for _ in range(10):  # safety cap at 500 segments
-        params = {"limit": 50}
-        if after:
-            params["after"] = after
-        data = safe_get(f"{BASE}/api/segments", key, params)
-        segs = data.get("segments", [])
-        total += len(segs)
-        paging = data.get("paging", {})
-        if not paging.get("hasMore") or not segs:
-            break
-        after = segs[-1].get("segmentID") or segs[-1].get("id")
-        if not after:
-            break
-    plus = total >= 50  # show + if we fetched a full page at least once
-    return {"count": total, "plus": False}
+    """Fetches segments (max 50 per page, show '+' if more pages exist)."""
+    data = safe_get(f"{BASE}/api/segments", key, {"limit": 50})
+    segs = data.get("segments", [])
+    more = data.get("paging", {}).get("hasMore", False)
+    return {"count": len(segs), "plus": more}
 
 
 # ─── Formatters ───────────────────────────────────────────────────────────────
