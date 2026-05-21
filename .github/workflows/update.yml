@@ -1,0 +1,45 @@
+name: Update Omnisend Dashboard
+
+on:
+  schedule:
+    # Every Monday at 08:00 UTC (4pm Beijing / 4am New York)
+    - cron: '0 8 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate dashboard
+        env:
+          API_KEY_GT_US: ${{ secrets.API_KEY_GT_US }}
+          API_KEY_GT_CA: ${{ secrets.API_KEY_GT_CA }}
+          API_KEY_GT_UK: ${{ secrets.API_KEY_GT_UK }}
+          API_KEY_GT_AU: ${{ secrets.API_KEY_GT_AU }}
+          API_KEY_GT_DE: ${{ secrets.API_KEY_GT_DE }}
+          API_KEY_GT_JP: ${{ secrets.API_KEY_GT_JP }}
+          API_KEY_GITRYIN_US: ${{ secrets.API_KEY_GITRYIN_US }}
+        run: python generate.py
+
+      - name: Commit and push index.html
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "chore: auto-update dashboard $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
