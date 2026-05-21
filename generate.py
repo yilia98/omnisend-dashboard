@@ -53,7 +53,7 @@ def safe_post(url, key, payload):
 
 # ─── Data fetchers ────────────────────────────────────────────────────────────
 def fetch_analytics(key, date_from, date_to):
-    data = safe_post(f"{BASE}/v3/analytics/reports", key, {"queries": [{"alias": "p",
+    data = safe_post(f"{BASE}/api/analytics/reports", key, {"queries": [{"alias": "p",
         "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
         "metrics": [
             {"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
@@ -65,7 +65,7 @@ def fetch_analytics(key, date_from, date_to):
 
 
 def fetch_campaigns(key, n=5):
-    data = safe_get(f"{BASE}/v3/campaigns", key,
+    data = safe_get(f"{BASE}/api/campaigns", key,
                     {"status": "sent", "limit": n, "sort": "createdAt", "direction": "desc"})
     return data.get("campaigns", [])
 
@@ -78,7 +78,7 @@ def fetch_automations(key):
 
 
 def fetch_segments(key):
-    data = safe_get(f"{BASE}/v3/segments", key, {"limit": 50})
+    data = safe_get(f"{BASE}/api/segments", key, {"limit": 50})
     segs = data.get("segments", [])
     more = data.get("paging", {}).get("hasMore", False)
     return {"count": len(segs), "plus": more}
