@@ -157,10 +157,17 @@ def fetch_campaigns(key, n=30):
         summary = c.get("summary") or {}
         if not _debug_printed:
             import json as _json
-            print(f"DEBUG campaign keys: {list(c.keys())}")
-            print(f"DEBUG stats keys: {list(stats.keys())}")
-            print(f"DEBUG summary keys: {list(summary.keys())}")
-            print(f"DEBUG stats sample: {_json.dumps(stats)[:500]}")
+            cid = c.get("id", "")
+            print(f"DEBUG campaign id={cid} keys: {list(c.keys())}")
+            # Try to fetch stats for this campaign
+            r1 = safe_get(f"{BASE}/api/campaigns/{cid}/statistics", key)
+            print(f"DEBUG /api/campaigns/{cid}/statistics: {_json.dumps(r1)[:500]}")
+            r2 = safe_get(f"{BASE}/v3/campaigns/{cid}/statistics", key)
+            print(f"DEBUG /v3/campaigns/{cid}/statistics: {_json.dumps(r2)[:500]}")
+            r3 = safe_get(f"{BASE}/api/campaigns/{cid}", key)
+            print(f"DEBUG /api/campaigns/{cid} keys: {list(r3.keys()) if isinstance(r3,dict) else r3}")
+            if isinstance(r3, dict) and r3.get("statistics"):
+                print(f"DEBUG single campaign stats: {_json.dumps(r3['statistics'])[:500]}")
             _debug_printed = True
         def st(*keys):
             return _pick(stats, *keys) or _pick(summary, *keys)
