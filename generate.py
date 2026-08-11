@@ -147,7 +147,7 @@ def _pick(d, *keys):
 
 def fetch_campaigns(key, n=30):
     data = safe_get(f"{BASE}/api/campaigns", key,
-                    {"status": "sent", "limit": n, "sort": "startedAt", "direction": "desc"})
+                    {"status": "sent", "limit": n, "sort": "updatedAt", "direction": "desc"})
     items = []
     for c in data.get("campaigns", []):
         ch = c.get("channel", "email").lower()
