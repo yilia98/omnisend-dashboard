@@ -108,7 +108,8 @@ def fetch_analytics(key, date_from, date_to):
     return {"totals": totals, "by_type": by_type}
 
 
-def fetch_subscriber_growth(key, date_from, date_to):
+def fetch_analytics_growth(key, date_from, date_to):
+    """Fetch subscriber growth for a given date range."""
     if date_from[:4] != date_to[:4]:
         date_from = f"{date_to[:4]}-01-01T00:00:00Z"
     data = safe_post(f"{BASE}/api/analytics/statistics", key, {"queries": [
@@ -131,32 +132,44 @@ def fetch_subscriber_growth(key, date_from, date_to):
     return out
 
 
-def fetch_campaigns(key, n=10):
+def fetch_subscriber_growth(key, date_from, date_to):
+    return fetch_analytics_growth(key, date_from, date_to)
+
+
+def _pick(d, *keys):
+    """Return the first non-None value from d for the given keys."""
+    for k in keys:
+        v = d.get(k)
+        if v is not None:
+            return v
+    return None
+
+
+def fetch_campaigns(key, n=30):
     data = safe_get(f"{BASE}/api/campaigns", key,
-                    {"status": "sent", "limit": n, "sort": "updatedAt", "direction": "desc"})
+                    {"status": "sent", "limit": n, "sort": "startedAt", "direction": "desc"})
     items = []
     for c in data.get("campaigns", []):
         ch = c.get("channel", "email").lower()
-        # normalise channel label
         ch_label = {"email": "EDM", "sms": "SMS", "push": "Push"}.get(ch, ch.upper())
-        stats = c.get("statistics", {})
+        stats   = c.get("statistics") or {}
+        summary = c.get("summary") or {}
+        def st(*keys):
+            return _pick(stats, *keys) or _pick(summary, *keys)
         items.append({
-            "name":         c.get("content", {}).get("email", {}).get("subject") or c.get("name", "—"),
-            "channel":      ch_label,
-            "status":       c.get("status", "—"),
-            "sent_at":      c.get("startedAt") or c.get("createdAt", ""),
-            "sent":         stats.get("sent") or stats.get("messagesSent"),
-            "open_rate":    stats.get("openRate"),
-            "opens":        stats.get("opened") or stats.get("messagesOpened"),
-            "click_rate":   stats.get("clickRate"),
-            "clicks":       stats.get("clicked") or stats.get("messagesClicked"),
-            "order_rate":   stats.get("ordersRate") or stats.get("placedOrderRate"),
-            "orders":       stats.get("orders") or stats.get("placedOrders"),
-            "revenue":      stats.get("revenue") or stats.get("attributedRevenue"),
-            "fail_rate":    stats.get("failedRate") or stats.get("failedDeliveryRate"),
-            "spam_rate":    stats.get("spamRate") or stats.get("markedAsSpamRate"),
-            "unsub_rate":   stats.get("unsubscribeRate"),
-            "unsubs":       stats.get("unsubscribed") or stats.get("messagesResultedInUnsubscribes"),
+            "name":       c.get("content", {}).get("email", {}).get("subject") or c.get("name", "—"),
+            "channel":    ch_label,
+            "status":     c.get("status", "—"),
+            "sent_at":    c.get("startedAt") or c.get("createdAt", ""),
+            "sent":       st("sent", "messagesSent", "totalSent"),
+            "open_rate":  st("openRate", "openRatio"),
+            "opens":      st("opened", "messagesOpened", "totalOpened", "uniqueOpened"),
+            "click_rate": st("clickRate", "clickRatio", "ctr"),
+            "clicks":     st("clicked", "messagesClicked", "totalClicked", "uniqueClicked"),
+            "orders":     st("orders", "placedOrders", "attributedOrders", "totalOrders"),
+            "revenue":    st("revenue", "attributedRevenue", "totalRevenue"),
+            "unsub_rate": st("unsubscribeRate", "unsubRatio"),
+            "unsubs":     st("unsubscribed", "messagesResultedInUnsubscribes", "totalUnsubscribed"),
         })
     return items
 
@@ -293,46 +306,58 @@ def status_cls(st):
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
-    now       = datetime.now(timezone.utc)
-    date_to   = now.strftime("%Y-%m-%dT23:59:59Z")
-    date_from = (now - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00Z")
-    display_range = f"{(now - timedelta(days=30)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
-    updated_at    = now.strftime("%Y-%m-%d %H:%M UTC")
+    now          = datetime.now(timezone.utc)
+    date_to      = now.strftime("%Y-%m-%dT23:59:59Z")
+    date_from_30 = (now - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00Z")
+    date_from_7  = (now - timedelta(days=7)).strftime("%Y-%m-%dT00:00:00Z")
+    display_30   = f"{(now - timedelta(days=30)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
+    display_7    = f"{(now - timedelta(days=7)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
+    updated_at   = now.strftime("%Y-%m-%d %H:%M UTC")
 
     store_data = []
+
+    empty_analytics = {"totals": {}, "by_type": {}}
+    empty_growth    = {"subscribedEmail": 0, "unsubscribedEmail": 0, "subscribedSms": 0}
+    empty_auto      = {"total": 0, "active": 0, "by_status": {}, "by_cat": {}, "ch_msgs": {}, "rows": []}
 
     for s in STORES:
         key = os.environ.get(s["key_env"], "")
         if not key:
             print(f"⚠️  No key for {s['id']}, skipping.")
             store_data.append({**s,
-                "analytics":   {"totals": {}, "by_type": {}},
-                "growth":      {"subscribedEmail": 0, "unsubscribedEmail": 0, "subscribedSms": 0},
-                "automations": {"total": 0, "active": 0, "by_status": {}, "by_cat": {}, "ch_msgs": {}, "rows": []},
-                "segments":    {"count": 0, "plus": False},
-                "campaigns":   [],
-                "forms":       [],
+                "analytics_30": empty_analytics,
+                "analytics_7":  empty_analytics,
+                "growth_30":    empty_growth,
+                "growth_7":     empty_growth,
+                "automations":  empty_auto,
+                "segments":     {"count": 0, "plus": False},
+                "campaigns":    [],
+                "forms":        [],
             })
             continue
 
         print(f"Fetching {s['id']}…")
         store_data.append({**s,
-            "analytics":   fetch_analytics(key, date_from, date_to),
-            "growth":      fetch_subscriber_growth(key, date_from, date_to),
-            "automations": fetch_automations(key),
-            "segments":    fetch_segments(key),
-            "campaigns":   fetch_campaigns(key, 10),
-            "forms":       fetch_forms(key),
+            "analytics_30": fetch_analytics(key, date_from_30, date_to),
+            "analytics_7":  fetch_analytics(key, date_from_7, date_to),
+            "growth_30":    fetch_analytics_growth(key, date_from_30, date_to),
+            "growth_7":     fetch_analytics_growth(key, date_from_7, date_to),
+            "automations":  fetch_automations(key),
+            "segments":     fetch_segments(key),
+            "campaigns":    fetch_campaigns(key, 30),
+            "forms":        fetch_forms(key),
         })
 
-    html = build_html(store_data, display_range, updated_at)
+    html = build_html(store_data, display_30, display_7, updated_at)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
     print("✅  index.html generated.")
 
 
 # ─── HTML builder ─────────────────────────────────────────────────────────────
-def build_html(stores, display_range, updated_at):
+def build_html(stores, display_30, display_7, updated_at):
+
+    import json as _json
 
     store_ids = [s["id"] for s in stores]
 
@@ -341,15 +366,53 @@ def build_html(stores, display_range, updated_at):
     for s in stores:
         market_opts += f'      <option value="{s["id"]}">{s["flag"]} {s["id"]}</option>\n'
 
+    # ── Embed analytics summary as JSON for JS date-range switching ──
+    def _totals_json(range_key):
+        out = {}
+        for s in stores:
+            a = s[f"analytics_{range_key}"]["totals"]
+            bt = s[f"analytics_{range_key}"]["by_type"]
+            g  = s[f"growth_{range_key}"]
+            sub = g.get("subscribedEmail", 0) or 0
+            uns = g.get("unsubscribedEmail", 0) or 0
+            sms = g.get("subscribedSms", 0) or 0
+            camp = bt.get("Campaign", {})
+            auto_t = bt.get("Automation", {})
+            out[s["id"]] = {
+                "sent":        a.get("sent"),
+                "openRate":    a.get("openRate"),
+                "clickRate":   a.get("clickRate"),
+                "revenue":     a.get("attributedRevenue"),
+                "totalRev":    a.get("totalRevenue"),
+                "orders":      a.get("attributedOrders"),
+                "unsubRate":   a.get("unsubscribeRate"),
+                "subEmail":    sub,
+                "unsubEmail":  uns,
+                "netGrowth":   sub - uns,
+                "subSms":      sms,
+                "campSent":    camp.get("sent"),
+                "campOpen":    camp.get("openRate"),
+                "campRev":     camp.get("attributedRevenue"),
+                "campOrders":  camp.get("attributedOrders"),
+                "autoSent":    auto_t.get("sent"),
+                "autoOpen":    auto_t.get("openRate"),
+                "autoRev":     auto_t.get("attributedRevenue"),
+                "autoOrders":  auto_t.get("attributedOrders"),
+                "currency":    s["currency"],
+                "color":       s["color"],
+            }
+        return out
+
+    data_30_json = _json.dumps(_totals_json("30"), ensure_ascii=False)
+    data_7_json  = _json.dumps(_totals_json("7"),  ensure_ascii=False)
+
     # ────────────────────────────────────────────────────────────────────────
-    # VIEW 1 — Overview: KPI cards + analytics table
+    # VIEW 1 — Overview: KPI cards (values updated by JS; show 30d by default)
     # ────────────────────────────────────────────────────────────────────────
     cards_html = ""
     for s in stores:
-        a    = s["analytics"]["totals"]
+        a    = s["analytics_30"]["totals"]
         auto = s["automations"]
-        seg  = s["segments"]
-        seg_label = f"{seg['count']}+" if seg["plus"] else str(seg["count"])
         cards_html += f"""
         <div class="card" data-store="{s['id']}" style="border-top:3px solid {s['color']}">
           <div class="card-header">
@@ -359,51 +422,51 @@ def build_html(stores, display_range, updated_at):
           <div class="card-name">{s['label']}</div>
           <div class="card-metrics">
             <div class="metric-box">
-              <div class="m-label">Sent (30d)</div>
-              <div class="m-value" style="color:{s['color']}">{fmt_num(a.get('sent'))}</div>
+              <div class="m-label" id="lbl-sent-{s['id']}">Sent</div>
+              <div class="m-value" id="val-sent-{s['id']}" style="color:{s['color']}">{fmt_num(a.get('sent'))}</div>
             </div>
             <div class="metric-box">
               <div class="m-label">Open Rate</div>
-              <div class="m-value">{fmt_pct(a.get('openRate'))}</div>
+              <div class="m-value" id="val-open-{s['id']}">{fmt_pct(a.get('openRate'))}</div>
             </div>
             <div class="metric-box">
               <div class="m-label">CTR</div>
-              <div class="m-value">{fmt_pct(a.get('clickRate'))}</div>
+              <div class="m-value" id="val-ctr-{s['id']}">{fmt_pct(a.get('clickRate'))}</div>
             </div>
             <div class="metric-box">
-              <div class="m-label">Attrib. Revenue</div>
-              <div class="m-value">{fmt_rev(a.get('attributedRevenue'), s['currency'])}</div>
+              <div class="m-label">Revenue</div>
+              <div class="m-value" id="val-rev-{s['id']}">{fmt_rev(a.get('attributedRevenue'), s['currency'])}</div>
             </div>
           </div>
           <div class="card-footer">
-            <span>📦 {fmt_num(a.get('attributedOrders'))} orders</span>
+            <span id="val-orders-{s['id']}">📦 {fmt_num(a.get('attributedOrders'))} orders</span>
             <span>⚡ {auto['active']}/{auto['total']} flows</span>
-            <span>🎯 {seg_label} segs</span>
           </div>
         </div>"""
 
+    # Analytics table rows — rendered with 30d data; JS updates on range switch
     analytics_rows = ""
     for s in stores:
-        a = s["analytics"]["totals"]
+        a = s["analytics_30"]["totals"]
         analytics_rows += f"""
         <tr data-store="{s['id']}">
           <td><div class="store-cell">
             <span class="dot" style="background:{s['color']}"></span>
             <span class="fw6">{s['flag']} {s['id']}</span>
           </div></td>
-          <td class="num">{fmt_num(a.get('sent'))}</td>
-          <td><span class="heat {open_cls(a.get('openRate'))}">{fmt_pct(a.get('openRate'))}</span></td>
-          <td><span class="heat {ctr_cls(a.get('clickRate'))}">{fmt_pct(a.get('clickRate'))}</span></td>
-          <td class="num">{fmt_rev(a.get('attributedRevenue'), s['currency'])}</td>
-          <td class="num muted">{fmt_rev(a.get('totalRevenue'), s['currency'])}</td>
-          <td class="num fw6">{fmt_num(a.get('attributedOrders'))}</td>
-          <td><span class="heat {unsub_cls(a.get('unsubscribeRate'))}">{fmt_pct(a.get('unsubscribeRate'))}</span></td>
+          <td class="num" id="tbl-sent-{s['id']}">{fmt_num(a.get('sent'))}</td>
+          <td id="tbl-open-{s['id']}"><span class="heat {open_cls(a.get('openRate'))}">{fmt_pct(a.get('openRate'))}</span></td>
+          <td id="tbl-ctr-{s['id']}"><span class="heat {ctr_cls(a.get('clickRate'))}">{fmt_pct(a.get('clickRate'))}</span></td>
+          <td class="num" id="tbl-rev-{s['id']}">{fmt_rev(a.get('attributedRevenue'), s['currency'])}</td>
+          <td class="num muted" id="tbl-trev-{s['id']}">{fmt_rev(a.get('totalRevenue'), s['currency'])}</td>
+          <td class="num fw6" id="tbl-orders-{s['id']}">{fmt_num(a.get('attributedOrders'))}</td>
+          <td id="tbl-unsub-{s['id']}"><span class="heat {unsub_cls(a.get('unsubscribeRate'))}">{fmt_pct(a.get('unsubscribeRate'))}</span></td>
         </tr>"""
 
-    # Campaign vs Automation split (overview sub-panel)
+    # Campaign vs Automation split
     split_rows = ""
     for s in stores:
-        bt   = s["analytics"]["by_type"]
+        bt   = s["analytics_30"]["by_type"]
         camp = bt.get("Campaign", {})
         auto = bt.get("Automation", {})
         split_rows += f"""
@@ -412,21 +475,21 @@ def build_html(stores, display_range, updated_at):
             <span class="dot" style="background:{s['color']}"></span>
             <span class="fw6">{s['flag']} {s['id']}</span>
           </div></td>
-          <td class="num">{fmt_num(camp.get('sent'))}</td>
-          <td><span class="heat {open_cls(camp.get('openRate'))}">{fmt_pct(camp.get('openRate'))}</span></td>
-          <td class="num">{fmt_rev(camp.get('attributedRevenue'), s['currency'])}</td>
-          <td class="num muted">{fmt_num(camp.get('attributedOrders'))}</td>
+          <td class="num" id="sp-csent-{s['id']}">{fmt_num(camp.get('sent'))}</td>
+          <td id="sp-copen-{s['id']}"><span class="heat {open_cls(camp.get('openRate'))}">{fmt_pct(camp.get('openRate'))}</span></td>
+          <td class="num" id="sp-crev-{s['id']}">{fmt_rev(camp.get('attributedRevenue'), s['currency'])}</td>
+          <td class="num muted" id="sp-corders-{s['id']}">{fmt_num(camp.get('attributedOrders'))}</td>
           <td class="divider-col"></td>
-          <td class="num">{fmt_num(auto.get('sent'))}</td>
-          <td><span class="heat {open_cls(auto.get('openRate'))}">{fmt_pct(auto.get('openRate'))}</span></td>
-          <td class="num">{fmt_rev(auto.get('attributedRevenue'), s['currency'])}</td>
-          <td class="num muted">{fmt_num(auto.get('attributedOrders'))}</td>
+          <td class="num" id="sp-asent-{s['id']}">{fmt_num(auto.get('sent'))}</td>
+          <td id="sp-aopen-{s['id']}"><span class="heat {open_cls(auto.get('openRate'))}">{fmt_pct(auto.get('openRate'))}</span></td>
+          <td class="num" id="sp-arev-{s['id']}">{fmt_rev(auto.get('attributedRevenue'), s['currency'])}</td>
+          <td class="num muted" id="sp-aorders-{s['id']}">{fmt_num(auto.get('attributedOrders'))}</td>
         </tr>"""
 
     # Growth rows
     growth_rows = ""
     for s in stores:
-        g   = s["growth"]
+        g   = s["growth_30"]
         sub = g.get("subscribedEmail", 0) or 0
         uns = g.get("unsubscribedEmail", 0) or 0
         sms = g.get("subscribedSms", 0) or 0
@@ -437,13 +500,13 @@ def build_html(stores, display_range, updated_at):
             <span class="dot" style="background:{s['color']}"></span>
             <span class="fw6">{s['flag']} {s['id']}</span>
           </div></td>
-          <td class="num pos">{fmt_num(sub)}</td>
-          <td class="num neg">−{fmt_num(uns)}</td>
-          <td><span class="heat {growth_cls(net)}">{'+' if net > 0 else ''}{fmt_num(net)}</span></td>
-          <td class="num muted">{fmt_num(sms) if sms else '—'}</td>
+          <td class="num pos" id="gr-sub-{s['id']}">{fmt_num(sub)}</td>
+          <td class="num neg" id="gr-uns-{s['id']}">−{fmt_num(uns)}</td>
+          <td id="gr-net-{s['id']}"><span class="heat {growth_cls(net)}">{'+' if net > 0 else ''}{fmt_num(net)}</span></td>
+          <td class="num muted" id="gr-sms-{s['id']}">{fmt_num(sms) if sms else '—'}</td>
         </tr>"""
 
-    # Segment bars
+    # Segment bars (static, not date-dependent)
     max_seg  = max((s["segments"]["count"] for s in stores), default=1)
     seg_rows = ""
     for s in stores:
@@ -469,7 +532,7 @@ def build_html(stores, display_range, updated_at):
             ch_cls = {"EDM": "tag-email", "SMS": "tag-sms", "Push": "tag-push"}.get(ch, "tag-email")
             st_cls = status_cls(c["status"])
             camp_rows += f"""
-        <tr data-store="{s['id']}" data-channel="{ch}">
+        <tr data-store="{s['id']}" data-channel="{ch}" data-sent-at="{c['sent_at']}" data-in-range="1">
           <td><div class="store-cell">
             <span class="dot" style="background:{s['color']}"></span>
             <span>{s['flag']} {s['id']}</span>
@@ -843,8 +906,17 @@ def build_html(stores, display_range, updated_at):
   <span class="filter-label">筛选</span>
 
   <div class="filter-group">
-    <label>📅 Date</label>
-    <span class="filter-date-badge" id="date-badge">{display_range}</span>
+    <label>📅 时间</label>
+    <div class="type-group">
+      <button class="type-btn" data-range="7"  onclick="setRange('7')" id="rbtn-7">近7天</button>
+      <button class="type-btn active" data-range="30" onclick="setRange('30')" id="rbtn-30">近30天</button>
+    </div>
+    <div id="custom-range-wrap" style="display:none;align-items:center;gap:4px">
+      <input type="date" class="filter-select" id="custom-from" style="padding:4px 8px">
+      <span style="color:#94a3b8;font-size:12px">–</span>
+      <input type="date" class="filter-select" id="custom-to" style="padding:4px 8px">
+    </div>
+    <span class="filter-date-badge" id="date-badge">{display_30}</span>
   </div>
 
   <div class="filter-sep"></div>
@@ -1077,13 +1149,119 @@ def build_html(stores, display_range, updated_at):
 </div><!-- /page -->
 
 <script>
-const STORE_IDS = {store_ids_js};
-let currentType = 'overview';
+const STORE_IDS  = {store_ids_js};
+const DATA_30    = {data_30_json};
+const DATA_7     = {data_7_json};
+const DISPLAY_30 = "{display_30}";
+const DISPLAY_7  = "{display_7}";
+
+let currentType  = 'overview';
+let currentRange = '30';
+
+// ── Formatters (mirror Python) ───────────────────────────────────────────────
+function fmtNum(n) {{
+  if (n == null) return '—';
+  return Math.round(n).toLocaleString();
+}}
+function fmtPct(n) {{
+  if (n == null) return '—';
+  return (n * 100).toFixed(2) + '%';
+}}
+function fmtRev(n, cur) {{
+  if (n == null) return '—';
+  const syms = {{USD:'$',CAD:'CA$',GBP:'£',AUD:'A$',EUR:'€',JPY:'¥'}};
+  const sym = syms[cur] || cur + ' ';
+  const val = cur === 'JPY' ? Math.round(n).toLocaleString() : Math.round(n).toLocaleString();
+  return sym + val;
+}}
+function openCls(r) {{
+  if (r == null) return 'h-gray';
+  const p = r * 100;
+  return p >= 45 ? 'h-green' : p >= 35 ? 'h-yellow' : 'h-red';
+}}
+function ctrCls(r) {{
+  if (r == null) return 'h-gray';
+  const p = r * 100;
+  return p >= 2.5 ? 'h-green' : p >= 1.5 ? 'h-yellow' : 'h-red';
+}}
+function unsubCls(r) {{
+  if (r == null) return 'h-gray';
+  const p = r * 100;
+  return p <= 0.4 ? 'h-green' : p <= 0.7 ? 'h-yellow' : 'h-red';
+}}
+function growthCls(net) {{
+  if (net == null) return 'h-gray';
+  return net > 0 ? 'h-green' : net < 0 ? 'h-red' : 'h-gray';
+}}
+function heat(cls, txt) {{ return `<span class="heat ${{cls}}">${{txt}}</span>`; }}
+
+// ── Date range switching ──────────────────────────────────────────────────────
+function setRange(r) {{
+  currentRange = r;
+  document.querySelectorAll('[data-range]').forEach(b =>
+    b.classList.toggle('active', b.dataset.range === r));
+  const badge = document.getElementById('date-badge');
+  if (badge) badge.textContent = r === '7' ? DISPLAY_7 : DISPLAY_30;
+  updateOverviewData();
+  updateCampDateFilter();
+  applyFilters();
+}}
+
+function updateOverviewData() {{
+  const data = currentRange === '7' ? DATA_7 : DATA_30;
+  STORE_IDS.forEach(sid => {{
+    const d = data[sid];
+    if (!d) return;
+    const cur = d.currency;
+    // Cards
+    const el = id => document.getElementById(id);
+    if (el('val-sent-' + sid))   el('val-sent-' + sid).textContent   = fmtNum(d.sent);
+    if (el('val-open-' + sid))   el('val-open-' + sid).textContent   = fmtPct(d.openRate);
+    if (el('val-ctr-' + sid))    el('val-ctr-' + sid).textContent    = fmtPct(d.clickRate);
+    if (el('val-rev-' + sid))    el('val-rev-' + sid).textContent    = fmtRev(d.revenue, cur);
+    if (el('val-orders-' + sid)) el('val-orders-' + sid).textContent = '📦 ' + fmtNum(d.orders) + ' orders';
+    // Analytics table
+    if (el('tbl-sent-' + sid))   el('tbl-sent-' + sid).textContent   = fmtNum(d.sent);
+    if (el('tbl-open-' + sid))   el('tbl-open-' + sid).innerHTML     = heat(openCls(d.openRate), fmtPct(d.openRate));
+    if (el('tbl-ctr-' + sid))    el('tbl-ctr-' + sid).innerHTML      = heat(ctrCls(d.clickRate), fmtPct(d.clickRate));
+    if (el('tbl-rev-' + sid))    el('tbl-rev-' + sid).textContent    = fmtRev(d.revenue, cur);
+    if (el('tbl-trev-' + sid))   el('tbl-trev-' + sid).textContent   = fmtRev(d.totalRev, cur);
+    if (el('tbl-orders-' + sid)) el('tbl-orders-' + sid).textContent = fmtNum(d.orders);
+    if (el('tbl-unsub-' + sid))  el('tbl-unsub-' + sid).innerHTML    = heat(unsubCls(d.unsubRate), fmtPct(d.unsubRate));
+    // Split table
+    if (el('sp-csent-' + sid))   el('sp-csent-' + sid).textContent   = fmtNum(d.campSent);
+    if (el('sp-copen-' + sid))   el('sp-copen-' + sid).innerHTML     = heat(openCls(d.campOpen), fmtPct(d.campOpen));
+    if (el('sp-crev-' + sid))    el('sp-crev-' + sid).textContent    = fmtRev(d.campRev, cur);
+    if (el('sp-corders-' + sid)) el('sp-corders-' + sid).textContent = fmtNum(d.campOrders);
+    if (el('sp-asent-' + sid))   el('sp-asent-' + sid).textContent   = fmtNum(d.autoSent);
+    if (el('sp-aopen-' + sid))   el('sp-aopen-' + sid).innerHTML     = heat(openCls(d.autoOpen), fmtPct(d.autoOpen));
+    if (el('sp-arev-' + sid))    el('sp-arev-' + sid).textContent    = fmtRev(d.autoRev, cur);
+    if (el('sp-aorders-' + sid)) el('sp-aorders-' + sid).textContent = fmtNum(d.autoOrders);
+    // Growth table
+    if (el('gr-sub-' + sid))     el('gr-sub-' + sid).textContent     = fmtNum(d.subEmail);
+    if (el('gr-uns-' + sid))     el('gr-uns-' + sid).textContent     = '−' + fmtNum(d.unsubEmail);
+    if (el('gr-net-' + sid))     el('gr-net-' + sid).innerHTML       = heat(growthCls(d.netGrowth), (d.netGrowth > 0 ? '+' : '') + fmtNum(d.netGrowth));
+    if (el('gr-sms-' + sid))     el('gr-sms-' + sid).textContent     = d.subSms ? fmtNum(d.subSms) : '—';
+  }});
+}}
+
+// ── Campaign date filter (7d hides rows older than 7 days) ───────────────────
+function updateCampDateFilter() {{
+  const cutoff = currentRange === '7' ? 7 : 30;
+  const now = new Date();
+  document.querySelectorAll('#camp-tbody tr[data-store]').forEach(row => {{
+    const dateStr = row.dataset.sentAt;
+    if (!dateStr) return;
+    const sent = new Date(dateStr);
+    const days = (now - sent) / 86400000;
+    row.dataset.inRange = days <= cutoff ? '1' : '0';
+  }});
+}}
 
 // ── View switching ────────────────────────────────────────────────────────────
 function setType(t) {{
   currentType = t;
-  document.querySelectorAll('.type-btn').forEach(b =>
+  document.querySelectorAll('.type-btn[data-type]').forEach(b =>
     b.classList.toggle('active', b.dataset.type === t));
   document.querySelectorAll('.view').forEach(v =>
     v.classList.toggle('active', v.id === 'view-' + t));
@@ -1092,8 +1270,8 @@ function setType(t) {{
 
 // ── Main filter function ──────────────────────────────────────────────────────
 function applyFilters() {{
-  const market  = document.getElementById('sel-market').value;   // "all" or store id
-  const channel = document.getElementById('sel-channel').value;  // "all" | "EDM" | "SMS" | "Push"
+  const market  = document.getElementById('sel-market').value;
+  const channel = document.getElementById('sel-channel').value;
 
   // ── Overview: KPI cards ──
   const cards = document.querySelectorAll('#cards-grid .card[data-store]');
@@ -1106,7 +1284,7 @@ function applyFilters() {{
   document.getElementById('cards-grid')
     .classList.toggle('single-store', visibleCards === 1);
 
-  // ── Overview: table rows (data-store only, no channel filter) ──
+  // ── Overview: table rows (store-only filter) ──
   ['analytics-tbody', 'split-tbody', 'growth-tbody'].forEach(id => {{
     const tbody = document.getElementById(id);
     if (!tbody) return;
@@ -1115,7 +1293,7 @@ function applyFilters() {{
     }});
   }});
 
-  // Segment bars (data-store, no channel)
+  // Segment bars
   document.querySelectorAll('#seg-panel .prog-row[data-store]').forEach(el => {{
     el.hidden = market !== 'all' && el.dataset.store !== market;
   }});
@@ -1136,32 +1314,33 @@ function applyFilters() {{
   if (catTitle) catTitle.textContent =
     market === 'all' ? 'Flow Categories — GT-US' : 'Flow Categories — ' + market;
 
-  // ── Campaign rows (market + channel) ──
-  filterDetailTable('camp-tbody',  market, channel);
+  // ── Campaign rows (market + channel + date range) ──
+  filterDetailTable('camp-tbody', market, channel, true);
 
   // ── Automation rows (market + channel) ──
-  filterDetailTable('auto-tbody',  market, channel);
+  filterDetailTable('auto-tbody', market, channel, false);
 
-  // ── Form rows (market only, no channel) ──
-  filterDetailTable('form-tbody',  market, 'all');
+  // ── Form rows (market only) ──
+  filterDetailTable('form-tbody', market, 'all', false);
 }}
 
-function filterDetailTable(tbodyId, market, channel) {{
+function filterDetailTable(tbodyId, market, channel, checkDateRange) {{
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
   let anyVisible = false;
   tbody.querySelectorAll('tr[data-store]').forEach(row => {{
-    const mOk = market  === 'all' || row.dataset.store   === market;
+    const mOk  = market  === 'all' || row.dataset.store === market;
     const chOk = channel === 'all' || (row.dataset.channel && row.dataset.channel.includes(channel));
-    row.hidden = !(mOk && chOk);
+    const dOk  = !checkDateRange || row.dataset.inRange !== '0';
+    row.hidden = !(mOk && chOk && dOk);
     if (!row.hidden) anyVisible = true;
   }});
-  // empty-state row
   const empty = tbody.querySelector('tr.empty-row');
   if (empty) empty.hidden = anyVisible;
 }}
 
 // init
+updateCampDateFilter();
 applyFilters();
 </script>
 </body>
