@@ -149,11 +149,19 @@ def fetch_campaigns(key, n=30):
     data = safe_get(f"{BASE}/api/campaigns", key,
                     {"status": "sent", "limit": n, "sort": "updatedAt", "direction": "desc"})
     items = []
+    _debug_printed = False
     for c in data.get("campaigns", []):
         ch = c.get("channel", "email").lower()
         ch_label = {"email": "EDM", "sms": "SMS", "push": "Push"}.get(ch, ch.upper())
         stats   = c.get("statistics") or {}
         summary = c.get("summary") or {}
+        if not _debug_printed:
+            import json as _json
+            print(f"DEBUG campaign keys: {list(c.keys())}")
+            print(f"DEBUG stats keys: {list(stats.keys())}")
+            print(f"DEBUG summary keys: {list(summary.keys())}")
+            print(f"DEBUG stats sample: {_json.dumps(stats)[:500]}")
+            _debug_printed = True
         def st(*keys):
             return _pick(stats, *keys) or _pick(summary, *keys)
         items.append({
