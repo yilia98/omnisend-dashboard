@@ -149,49 +149,14 @@ def fetch_campaigns(key, n=30):
     data = safe_get(f"{BASE}/api/campaigns", key,
                     {"status": "sent", "limit": n, "sort": "updatedAt", "direction": "desc"})
     items = []
-    _debug_printed = False
     for c in data.get("campaigns", []):
         ch = c.get("channel", "email").lower()
         ch_label = {"email": "EDM", "sms": "SMS", "push": "Push"}.get(ch, ch.upper())
-        stats   = c.get("statistics") or {}
-        summary = c.get("summary") or {}
-        if not _debug_printed:
-            import json as _json
-            cid = c.get("id", "")
-            now_iso = datetime.now(timezone.utc)
-            d_to   = now_iso.strftime("%Y-%m-%dT23:59:59Z")
-            d_from = (now_iso - timedelta(days=60)).strftime("%Y-%m-%dT00:00:00Z")
-            # Try with absolute-count metrics only (no rate metrics)
-            r_ana = safe_post(f"{BASE}/api/analytics/statistics", key, {"queries": [{
-                "alias": "by_camp",
-                "dateRange": {"interval": "custom", "from": d_from, "to": d_to},
-                "dimensions": [{"name": "campaignID"}],
-                "metrics": [{"name": "sent"}, {"name": "opened"}, {"name": "clicked"}],
-            }]})
-            stats_list = r_ana.get("statistics", [{}])
-            rows = stats_list[0].get("rows", []) if stats_list else []
-            print(f"DEBUG campaignID dim absolute metrics: rows={len(rows)} err={_json.dumps(r_ana)[:300] if not rows else ''}")
-            if rows:
-                print(f"DEBUG first row: {_json.dumps(rows[0])[:400]}")
-                match = next((r for r in rows if r.get("campaignID") == cid), None)
-                print(f"DEBUG match for {cid}: {_json.dumps(match)[:400] if match else 'NOT FOUND in '+str(len(rows))+' rows'}")
-            _debug_printed = True
-        def st(*keys):
-            return _pick(stats, *keys) or _pick(summary, *keys)
         items.append({
-            "name":       c.get("content", {}).get("email", {}).get("subject") or c.get("name", "—"),
-            "channel":    ch_label,
-            "status":     c.get("status", "—"),
-            "sent_at":    c.get("startedAt") or c.get("createdAt", ""),
-            "sent":       st("sent", "messagesSent", "totalSent"),
-            "open_rate":  st("openRate", "openRatio"),
-            "opens":      st("opened", "messagesOpened", "totalOpened", "uniqueOpened"),
-            "click_rate": st("clickRate", "clickRatio", "ctr"),
-            "clicks":     st("clicked", "messagesClicked", "totalClicked", "uniqueClicked"),
-            "orders":     st("orders", "placedOrders", "attributedOrders", "totalOrders"),
-            "revenue":    st("revenue", "attributedRevenue", "totalRevenue"),
-            "unsub_rate": st("unsubscribeRate", "unsubRatio"),
-            "unsubs":     st("unsubscribed", "messagesResultedInUnsubscribes", "totalUnsubscribed"),
+            "name":    c.get("content", {}).get("email", {}).get("subject") or c.get("name", "—"),
+            "channel": ch_label,
+            "status":  c.get("status", "—"),
+            "sent_at": c.get("startedAt") or c.get("createdAt", ""),
         })
     return items
 
@@ -563,18 +528,10 @@ def build_html(stores, display_30, display_7, updated_at):
           <td><span class="tag {ch_cls}">{ch}</span></td>
           <td class="muted small">{fmt_date(c['sent_at'])}</td>
           <td><span class="{st_cls}">{c['status']}</span></td>
-          <td class="num">{fmt_num(c['sent'])}</td>
-          <td><span class="heat {open_cls(c['open_rate'])}">{fmt_pct(c['open_rate'])}</span></td>
-          <td class="num muted">{fmt_num(c['opens'])}</td>
-          <td><span class="heat {ctr_cls(c['click_rate'])}">{fmt_pct(c['click_rate'])}</span></td>
-          <td class="num muted">{fmt_num(c['clicks'])}</td>
-          <td class="num">{fmt_rev(c['revenue'], s['currency'])}</td>
-          <td class="num muted">{fmt_num(c['orders'])}</td>
-          <td><span class="heat {unsub_cls(c['unsub_rate'])}">{fmt_pct(c['unsub_rate'])}</span></td>
         </tr>"""
 
     if not camp_rows:
-        camp_rows = '<tr class="empty-row"><td colspan="13">No campaign data available</td></tr>'
+        camp_rows = '<tr class="empty-row"><td colspan="5">No campaign data available</td></tr>'
 
     # ────────────────────────────────────────────────────────────────────────
     # VIEW 3 — Automation detail table
@@ -1064,6 +1021,9 @@ def build_html(stores, display_30, display_7, updated_at):
 ═══════════════════════════════════════════════════════════════ -->
 <div id="view-campaign" class="view">
 
+  <!-- Campaign aggregate stats (date-switchable via JS) -->
+  <div class="kpi-grid" id="camp-kpi-grid" style="margin-bottom:18px"></div>
+
   <div class="section-title"><span class="st-icon">📧</span> Recent Campaigns</div>
   <div class="table-wrap">
     <table>
@@ -1074,14 +1034,6 @@ def build_html(stores, display_30, display_7, updated_at):
           <th>Channel</th>
           <th>Send Date</th>
           <th>Status</th>
-          <th class="num">Sent</th>
-          <th>Open%</th>
-          <th class="num">Opens</th>
-          <th>CTR</th>
-          <th class="num">Clicks</th>
-          <th class="num">Revenue</th>
-          <th class="num">Orders</th>
-          <th>Unsub%</th>
         </tr>
       </thead>
       <tbody id="camp-tbody">{camp_rows}</tbody>
@@ -1225,6 +1177,7 @@ function setRange(r) {{
   const badge = document.getElementById('date-badge');
   if (badge) badge.textContent = r === '7' ? DISPLAY_7 : DISPLAY_30;
   updateOverviewData();
+  updateCampKpis();
   updateCampDateFilter();
   applyFilters();
 }}
@@ -1265,6 +1218,37 @@ function updateOverviewData() {{
     if (el('gr-net-' + sid))     el('gr-net-' + sid).innerHTML       = heat(growthCls(d.netGrowth), (d.netGrowth > 0 ? '+' : '') + fmtNum(d.netGrowth));
     if (el('gr-sms-' + sid))     el('gr-sms-' + sid).textContent     = d.subSms ? fmtNum(d.subSms) : '—';
   }});
+}}
+
+// ── Campaign KPI summary banner ──────────────────────────────────────────────
+function updateCampKpis() {{
+  const data = currentRange === '7' ? DATA_7 : DATA_30;
+  const market = currentMarket;
+  const ids = market === 'all' ? STORE_IDS : [market];
+  let totSent = 0, totRev = 0, totOrders = 0;
+  let sumOpenW = 0, sumOpenBase = 0;
+  ids.forEach(sid => {{
+    const d = data[sid];
+    if (!d) return;
+    totSent   += d.campSent   || 0;
+    totRev    += d.campRev    || 0;
+    totOrders += d.campOrders || 0;
+    if (d.campOpen != null && d.campSent) {{
+      sumOpenW    += d.campOpen * d.campSent;
+      sumOpenBase += d.campSent;
+    }}
+  }});
+  const avgOpen = sumOpenBase ? sumOpenW / sumOpenBase : null;
+  // Use first store's currency for revenue (mixed currencies: show USD total if all market)
+  const cur = (market !== 'all' && data[market]) ? data[market].currency : 'USD';
+  const grid = document.getElementById('camp-kpi-grid');
+  if (!grid) return;
+  grid.innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN SENT</div><div class="kpi-val">${{fmtNum(totSent)}}</div></div>
+    <div class="kpi-card"><div class="kpi-label">AVG OPEN RATE</div><div class="kpi-val">${{fmtPct(avgOpen)}}</div></div>
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN REVENUE</div><div class="kpi-val">${{fmtRev(totRev, cur)}}</div><div class="kpi-sub">Attributed</div></div>
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN ORDERS</div><div class="kpi-val">${{fmtNum(totOrders)}}</div><div class="kpi-sub">Attributed</div></div>
+  `;
 }}
 
 // ── Campaign date filter (7d hides rows older than 7 days) ───────────────────
@@ -1336,6 +1320,9 @@ function applyFilters() {{
   if (catTitle) catTitle.textContent =
     market === 'all' ? 'Flow Categories — GT-US' : 'Flow Categories — ' + market;
 
+  // ── Campaign KPI banner ──
+  updateCampKpis();
+
   // ── Campaign rows (market + channel + date range) ──
   filterDetailTable('camp-tbody', market, channel, true);
 
@@ -1363,6 +1350,7 @@ function filterDetailTable(tbodyId, market, channel, checkDateRange) {{
 
 // init
 updateCampDateFilter();
+updateCampKpis();
 applyFilters();
 </script>
 </body>
