@@ -166,8 +166,7 @@ def fetch_campaigns(key, n=30):
                 "alias": "by_camp",
                 "dateRange": {"interval": "custom", "from": d_from, "to": d_to},
                 "dimensions": [{"name": "campaignID"}],
-                "metrics": [{"name": "sent"}, {"name": "opened"}, {"name": "clicked"},
-                             {"name": "unsubscribed"}],
+                "metrics": [{"name": "sent"}, {"name": "opened"}, {"name": "clicked"}],
             }]})
             stats_list = r_ana.get("statistics", [{}])
             rows = stats_list[0].get("rows", []) if stats_list else []
