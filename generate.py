@@ -158,16 +158,28 @@ def fetch_campaigns(key, n=30):
         if not _debug_printed:
             import json as _json
             cid = c.get("id", "")
-            print(f"DEBUG campaign id={cid} keys: {list(c.keys())}")
-            # Try to fetch stats for this campaign
-            r1 = safe_get(f"{BASE}/api/campaigns/{cid}/statistics", key)
-            print(f"DEBUG /api/campaigns/{cid}/statistics: {_json.dumps(r1)[:500]}")
-            r2 = safe_get(f"{BASE}/v3/campaigns/{cid}/statistics", key)
-            print(f"DEBUG /v3/campaigns/{cid}/statistics: {_json.dumps(r2)[:500]}")
-            r3 = safe_get(f"{BASE}/api/campaigns/{cid}", key)
-            print(f"DEBUG /api/campaigns/{cid} keys: {list(r3.keys()) if isinstance(r3,dict) else r3}")
-            if isinstance(r3, dict) and r3.get("statistics"):
-                print(f"DEBUG single campaign stats: {_json.dumps(r3['statistics'])[:500]}")
+            # Try analytics with campaignID dimension
+            now_iso = datetime.now(timezone.utc)
+            d_to   = now_iso.strftime("%Y-%m-%dT23:59:59Z")
+            d_from = (now_iso - timedelta(days=60)).strftime("%Y-%m-%dT00:00:00Z")
+            r_ana = safe_post(f"{BASE}/api/analytics/statistics", key, {"queries": [{
+                "alias": "by_camp",
+                "dateRange": {"interval": "custom", "from": d_from, "to": d_to},
+                "dimensions": [{"name": "campaignID"}],
+                "metrics": [{"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
+                             {"name": "revenue"}, {"name": "orders"}, {"name": "unsubscribeRate"}],
+            }]})
+            stats_list = r_ana.get("statistics", [{}])
+            rows = stats_list[0].get("rows", []) if stats_list else []
+            print(f"DEBUG analytics by campaignID rows count: {len(rows)}")
+            if rows:
+                print(f"DEBUG first row keys: {list(rows[0].keys())}")
+                print(f"DEBUG first row: {_json.dumps(rows[0])[:400]}")
+                # Check if our campaign ID appears
+                match = next((r for r in rows if r.get("campaignID") == cid), None)
+                print(f"DEBUG match for {cid}: {_json.dumps(match)[:400] if match else 'NOT FOUND'}")
+            else:
+                print(f"DEBUG analytics error: {_json.dumps(r_ana)[:400]}")
             _debug_printed = True
         def st(*keys):
             return _pick(stats, *keys) or _pick(summary, *keys)
