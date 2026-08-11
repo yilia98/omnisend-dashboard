@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Omnisend Multi-Store Dashboard Generator — v2
-Sections: Store KPIs · Email Analytics · Campaign vs Automation ·
-          Recent Campaigns · Automation Health · Subscriber Growth · Segments
+Omnisend Multi-Store Dashboard Generator — V2
+Filter bar: Market × Channel × Type (Overview / Campaign / Automation / Form)
+Three view modes, client-side JS switching.
 """
 
 import os
@@ -20,9 +20,10 @@ STORES = [
     {"id": "Gitryin-US", "flag": "⚡",   "label": "Gitryin US",        "currency": "USD", "color": "#0891b2", "bg": "#ecfeff", "key_env": "API_KEY_GITRYIN_US"},
 ]
 
+STORE_MAP = {s["id"]: s for s in STORES}
+
 BASE = "https://api.omnisend.com"
 
-# Automation trigger → display category
 TRIGGER_MAP = {
     "Subscribed to Marketing": "Welcome",
     "Started checkout":        "Checkout Abandon",
@@ -35,16 +36,16 @@ TRIGGER_MAP = {
 }
 
 CAT_ICONS = {
-    "Welcome":           "👋",
-    "Checkout Abandon":  "🛒",
-    "Cart Abandon":      "🛒",
-    "Product Abandon":   "👁",
-    "Browse Abandon":    "👁",
-    "Post-Purchase":     "📦",
-    "Reactivation":      "🔄",
-    "Anniversary":       "🎂",
-    "Lifecycle":         "🎯",
-    "Other":             "🔧",
+    "Welcome":          "👋",
+    "Checkout Abandon": "🛒",
+    "Cart Abandon":     "🛒",
+    "Product Abandon":  "👁",
+    "Browse Abandon":   "👁",
+    "Post-Purchase":    "📦",
+    "Reactivation":     "🔄",
+    "Anniversary":      "🎂",
+    "Lifecycle":        "🎯",
+    "Other":            "🔧",
 }
 
 
@@ -78,7 +79,6 @@ def safe_post(url, key, payload):
 
 # ─── Data fetchers ────────────────────────────────────────────────────────────
 def fetch_analytics(key, date_from, date_to):
-    """Overall totals + Campaign vs Automation split — 1 API call, 2 queries."""
     data = safe_post(f"{BASE}/api/analytics/reports", key, {"queries": [
         {
             "alias": "totals",
@@ -109,8 +109,6 @@ def fetch_analytics(key, date_from, date_to):
 
 
 def fetch_subscriber_growth(key, date_from, date_to):
-    """New email/SMS subscribers + email unsubscribes via analytics/statistics."""
-    # statistics API requires both dates in the same calendar year
     if date_from[:4] != date_to[:4]:
         date_from = f"{date_to[:4]}-01-01T00:00:00Z"
     data = safe_post(f"{BASE}/api/analytics/statistics", key, {"queries": [
@@ -133,10 +131,34 @@ def fetch_subscriber_growth(key, date_from, date_to):
     return out
 
 
-def fetch_campaigns(key, n=5):
+def fetch_campaigns(key, n=10):
     data = safe_get(f"{BASE}/api/campaigns", key,
                     {"status": "sent", "limit": n, "sort": "updatedAt", "direction": "desc"})
-    return data.get("campaigns", [])
+    items = []
+    for c in data.get("campaigns", []):
+        ch = c.get("channel", "email").lower()
+        # normalise channel label
+        ch_label = {"email": "EDM", "sms": "SMS", "push": "Push"}.get(ch, ch.upper())
+        stats = c.get("statistics", {})
+        items.append({
+            "name":         c.get("content", {}).get("email", {}).get("subject") or c.get("name", "—"),
+            "channel":      ch_label,
+            "status":       c.get("status", "—"),
+            "sent_at":      c.get("startedAt") or c.get("createdAt", ""),
+            "sent":         stats.get("sent") or stats.get("messagesSent"),
+            "open_rate":    stats.get("openRate"),
+            "opens":        stats.get("opened") or stats.get("messagesOpened"),
+            "click_rate":   stats.get("clickRate"),
+            "clicks":       stats.get("clicked") or stats.get("messagesClicked"),
+            "order_rate":   stats.get("ordersRate") or stats.get("placedOrderRate"),
+            "orders":       stats.get("orders") or stats.get("placedOrders"),
+            "revenue":      stats.get("revenue") or stats.get("attributedRevenue"),
+            "fail_rate":    stats.get("failedRate") or stats.get("failedDeliveryRate"),
+            "spam_rate":    stats.get("spamRate") or stats.get("markedAsSpamRate"),
+            "unsub_rate":   stats.get("unsubscribeRate"),
+            "unsubs":       stats.get("unsubscribed") or stats.get("messagesResultedInUnsubscribes"),
+        })
+    return items
 
 
 def fetch_automations(key):
@@ -146,6 +168,7 @@ def fetch_automations(key):
     by_status = {"enabled": 0, "disabled": 0, "draft": 0}
     by_cat = {}
     ch_msgs = {"email": 0, "sms": 0, "push": 0}
+    auto_rows = []
 
     for a in items:
         st = a.get("status", "draft")
@@ -154,7 +177,6 @@ def fetch_automations(key):
         trigger = a.get("trigger", "")
         cat = TRIGGER_MAP.get(trigger, "Other")
 
-        # Refine "Lifecycle" by name keywords
         if trigger == "Entered segment":
             nm = a.get("name", "").lower()
             if any(x in nm for x in ["welcome"]):
@@ -174,21 +196,49 @@ def fetch_automations(key):
         if st == "enabled":
             entry["enabled"] += 1
 
-        for msg in a.get("messages", []):
-            ch = msg.get("channel", "email")
+        msgs = a.get("messages", [])
+        channels = list({m.get("channel", "email") for m in msgs})
+        for m in msgs:
+            ch = m.get("channel", "email")
             ch_msgs[ch] = ch_msgs.get(ch, 0) + 1
 
+        ch_labels = [{"email": "EDM", "sms": "SMS", "push": "Push"}.get(c, c.upper()) for c in channels]
+        auto_rows.append({
+            "name":     a.get("name", "—"),
+            "status":   st,
+            "category": cat,
+            "channels": ", ".join(ch_labels) if ch_labels else "—",
+            "trigger":  trigger or "—",
+        })
+
     return {
-        "total":      len(items),
-        "active":     by_status.get("enabled", 0),
-        "by_status":  by_status,
-        "by_cat":     by_cat,
-        "ch_msgs":    ch_msgs,
+        "total":     len(items),
+        "active":    by_status.get("enabled", 0),
+        "by_status": by_status,
+        "by_cat":    by_cat,
+        "ch_msgs":   ch_msgs,
+        "rows":      auto_rows,
     }
 
 
+def fetch_forms(key):
+    data = safe_get(f"{BASE}/api/forms", key, {"limit": 50})
+    items = []
+    for f in data.get("forms", []):
+        stats = f.get("statistics", {})
+        items.append({
+            "name":             f.get("name", "—"),
+            "type":             f.get("type", "—"),
+            "status":           f.get("status", "—"),
+            "views":            stats.get("views"),
+            "interaction_rate": stats.get("interactionRate"),
+            "submit_rate":      stats.get("submitRate"),
+            "signup_rate":      stats.get("signupRate"),
+        })
+    return items
+
+
 def fetch_segments(key):
-    """Fetches segments (max 50 per page, show '+' if more pages exist)."""
     data = safe_get(f"{BASE}/api/segments", key, {"limit": 50})
     segs = data.get("segments", [])
     more = data.get("paging", {}).get("hasMore", False)
@@ -199,14 +249,23 @@ def fetch_segments(key):
 def fmt_num(n):
     return f"{int(n):,}" if n is not None else "—"
 
-def fmt_pct(n):
-    return f"{n * 100:.2f}%" if n is not None else "—"
+def fmt_pct(n, decimals=2):
+    return f"{n * 100:.{decimals}f}%" if n is not None else "—"
 
 def fmt_rev(n, cur):
     if n is None:
         return "—"
     sym = {"USD": "$", "CAD": "CA$", "GBP": "£", "AUD": "A$", "EUR": "€", "JPY": "¥"}.get(cur, cur + " ")
     return f"{sym}{int(n):,}" if cur == "JPY" else f"{sym}{n:,.0f}"
+
+def fmt_date(iso):
+    if not iso:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        return dt.strftime("%b %d, %Y")
+    except Exception:
+        return iso[:10]
 
 def open_cls(r):
     if r is None: return "h-gray"
@@ -227,6 +286,10 @@ def growth_cls(net):
     if net is None: return "h-gray"
     return "h-green" if net > 0 else ("h-red" if net < 0 else "h-gray")
 
+def status_cls(st):
+    return {"enabled": "status-on", "sent": "status-on", "disabled": "status-off",
+            "draft": "status-draft", "paused": "status-off"}.get(st, "status-draft")
+
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
@@ -236,8 +299,7 @@ def main():
     display_range = f"{(now - timedelta(days=30)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
     updated_at    = now.strftime("%Y-%m-%d %H:%M UTC")
 
-    store_data    = []
-    all_campaigns = []
+    store_data = []
 
     for s in STORES:
         key = os.environ.get(s["key_env"], "")
@@ -246,44 +308,42 @@ def main():
             store_data.append({**s,
                 "analytics":   {"totals": {}, "by_type": {}},
                 "growth":      {"subscribedEmail": 0, "unsubscribedEmail": 0, "subscribedSms": 0},
-                "automations": {"total": 0, "active": 0, "by_status": {}, "by_cat": {}, "ch_msgs": {}},
+                "automations": {"total": 0, "active": 0, "by_status": {}, "by_cat": {}, "ch_msgs": {}, "rows": []},
                 "segments":    {"count": 0, "plus": False},
                 "campaigns":   [],
+                "forms":       [],
             })
             continue
 
         print(f"Fetching {s['id']}…")
-        analytics   = fetch_analytics(key, date_from, date_to)
-        growth      = fetch_subscriber_growth(key, date_from, date_to)
-        automations = fetch_automations(key)
-        segments    = fetch_segments(key)
-        campaigns   = fetch_campaigns(key, 3)
-
         store_data.append({**s,
-            "analytics":   analytics,
-            "growth":      growth,
-            "automations": automations,
-            "segments":    segments,
-            "campaigns":   campaigns,
+            "analytics":   fetch_analytics(key, date_from, date_to),
+            "growth":      fetch_subscriber_growth(key, date_from, date_to),
+            "automations": fetch_automations(key),
+            "segments":    fetch_segments(key),
+            "campaigns":   fetch_campaigns(key, 10),
+            "forms":       fetch_forms(key),
         })
-        for c in campaigns:
-            c["_store_id"]    = s["id"]
-            c["_store_color"] = s["color"]
-            c["_store_flag"]  = s["flag"]
-            all_campaigns.append(c)
 
-    all_campaigns.sort(key=lambda c: c.get("startedAt") or c.get("createdAt", ""), reverse=True)
-
-    html = build_html(store_data, all_campaigns[:15], display_range, updated_at)
+    html = build_html(store_data, display_range, updated_at)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
     print("✅  index.html generated.")
 
 
 # ─── HTML builder ─────────────────────────────────────────────────────────────
-def build_html(stores, campaigns, display_range, updated_at):
+def build_html(stores, display_range, updated_at):
 
-    # ── 1. Store KPI cards ──
+    store_ids = [s["id"] for s in stores]
+
+    # ── Market options for filter dropdown ──
+    market_opts = '<option value="all">All Markets</option>\n'
+    for s in stores:
+        market_opts += f'      <option value="{s["id"]}">{s["flag"]} {s["id"]}</option>\n'
+
+    # ────────────────────────────────────────────────────────────────────────
+    # VIEW 1 — Overview: KPI cards + analytics table
+    # ────────────────────────────────────────────────────────────────────────
     cards_html = ""
     for s in stores:
         a    = s["analytics"]["totals"]
@@ -291,7 +351,7 @@ def build_html(stores, campaigns, display_range, updated_at):
         seg  = s["segments"]
         seg_label = f"{seg['count']}+" if seg["plus"] else str(seg["count"])
         cards_html += f"""
-        <div class="card" style="border-top:3px solid {s['color']}">
+        <div class="card" data-store="{s['id']}" style="border-top:3px solid {s['color']}">
           <div class="card-header">
             <span class="store-badge" style="background:{s['bg']};color:{s['color']}">{s['flag']} {s['id']}</span>
             <span class="card-currency">{s['currency']}</span>
@@ -322,12 +382,11 @@ def build_html(stores, campaigns, display_range, updated_at):
           </div>
         </div>"""
 
-    # ── 2. Analytics table rows ──
-    table_rows = ""
+    analytics_rows = ""
     for s in stores:
         a = s["analytics"]["totals"]
-        table_rows += f"""
-        <tr>
+        analytics_rows += f"""
+        <tr data-store="{s['id']}">
           <td><div class="store-cell">
             <span class="dot" style="background:{s['color']}"></span>
             <span class="fw6">{s['flag']} {s['id']}</span>
@@ -341,14 +400,14 @@ def build_html(stores, campaigns, display_range, updated_at):
           <td><span class="heat {unsub_cls(a.get('unsubscribeRate'))}">{fmt_pct(a.get('unsubscribeRate'))}</span></td>
         </tr>"""
 
-    # ── 3. Campaign vs Automation split ──
+    # Campaign vs Automation split (overview sub-panel)
     split_rows = ""
     for s in stores:
         bt   = s["analytics"]["by_type"]
         camp = bt.get("Campaign", {})
         auto = bt.get("Automation", {})
         split_rows += f"""
-        <tr>
+        <tr data-store="{s['id']}">
           <td><div class="store-cell">
             <span class="dot" style="background:{s['color']}"></span>
             <span class="fw6">{s['flag']} {s['id']}</span>
@@ -364,39 +423,109 @@ def build_html(stores, campaigns, display_range, updated_at):
           <td class="num muted">{fmt_num(auto.get('attributedOrders'))}</td>
         </tr>"""
 
-    # ── 4. Recent campaigns table ──
-    camp_rows = ""
-    for c in campaigns:
-        subj    = c.get("content", {}).get("email", {}).get("subject") or c.get("name", "—")
-        channel = c.get("channel", "email").upper()
-        ch_cls  = "tag-email" if channel == "EMAIL" else ("tag-sms" if channel == "SMS" else "tag-push")
-        date_raw = c.get("startedAt") or c.get("createdAt", "")
-        try:
-            dt       = datetime.fromisoformat(date_raw.replace("Z", "+00:00"))
-            date_str = dt.strftime("%b %d, %Y")
-        except Exception:
-            date_str = date_raw[:10]
-        camp_rows += f"""
-        <tr>
+    # Growth rows
+    growth_rows = ""
+    for s in stores:
+        g   = s["growth"]
+        sub = g.get("subscribedEmail", 0) or 0
+        uns = g.get("unsubscribedEmail", 0) or 0
+        sms = g.get("subscribedSms", 0) or 0
+        net = sub - uns
+        growth_rows += f"""
+        <tr data-store="{s['id']}">
           <td><div class="store-cell">
-            <span class="dot" style="background:{c['_store_color']}"></span>
-            <span>{c['_store_flag']} {c['_store_id']}</span>
+            <span class="dot" style="background:{s['color']}"></span>
+            <span class="fw6">{s['flag']} {s['id']}</span>
           </div></td>
-          <td class="camp-name">{subj}</td>
-          <td><span class="tag {ch_cls}">{channel}</span></td>
-          <td class="muted">{date_str}</td>
-          <td><span class="status-sent">✓ Sent</span></td>
+          <td class="num pos">{fmt_num(sub)}</td>
+          <td class="num neg">−{fmt_num(uns)}</td>
+          <td><span class="heat {growth_cls(net)}">{'+' if net > 0 else ''}{fmt_num(net)}</span></td>
+          <td class="num muted">{fmt_num(sms) if sms else '—'}</td>
         </tr>"""
 
-    # ── 5. Automations — progress bars ──
+    # Segment bars
+    max_seg  = max((s["segments"]["count"] for s in stores), default=1)
+    seg_rows = ""
+    for s in stores:
+        seg   = s["segments"]
+        label = f"{seg['count']}+" if seg["plus"] else str(seg["count"])
+        width = round(seg["count"] / max(max_seg, 1) * 100)
+        seg_rows += f"""
+        <div class="prog-row" data-store="{s['id']}">
+          <div class="prog-label" style="color:{s['color']}">{s['id']}</div>
+          <div class="prog-track">
+            <div class="prog-fill" style="width:{max(width,4)}%;background:{s['color']};opacity:.75"></div>
+          </div>
+          <div class="prog-count">{label}</div>
+        </div>"""
+
+    # ────────────────────────────────────────────────────────────────────────
+    # VIEW 2 — Campaign detail table
+    # ────────────────────────────────────────────────────────────────────────
+    camp_rows = ""
+    for s in stores:
+        for c in s["campaigns"]:
+            ch = c["channel"]
+            ch_cls = {"EDM": "tag-email", "SMS": "tag-sms", "Push": "tag-push"}.get(ch, "tag-email")
+            st_cls = status_cls(c["status"])
+            camp_rows += f"""
+        <tr data-store="{s['id']}" data-channel="{ch}">
+          <td><div class="store-cell">
+            <span class="dot" style="background:{s['color']}"></span>
+            <span>{s['flag']} {s['id']}</span>
+          </div></td>
+          <td class="camp-name" title="{c['name']}">{c['name']}</td>
+          <td><span class="tag {ch_cls}">{ch}</span></td>
+          <td class="muted small">{fmt_date(c['sent_at'])}</td>
+          <td><span class="{st_cls}">{c['status']}</span></td>
+          <td class="num">{fmt_num(c['sent'])}</td>
+          <td><span class="heat {open_cls(c['open_rate'])}">{fmt_pct(c['open_rate'])}</span></td>
+          <td class="num muted">{fmt_num(c['opens'])}</td>
+          <td><span class="heat {ctr_cls(c['click_rate'])}">{fmt_pct(c['click_rate'])}</span></td>
+          <td class="num muted">{fmt_num(c['clicks'])}</td>
+          <td class="num">{fmt_rev(c['revenue'], s['currency'])}</td>
+          <td class="num muted">{fmt_num(c['orders'])}</td>
+          <td><span class="heat {unsub_cls(c['unsub_rate'])}">{fmt_pct(c['unsub_rate'])}</span></td>
+        </tr>"""
+
+    if not camp_rows:
+        camp_rows = '<tr class="empty-row"><td colspan="13">No campaign data available</td></tr>'
+
+    # ────────────────────────────────────────────────────────────────────────
+    # VIEW 3 — Automation detail table
+    # ────────────────────────────────────────────────────────────────────────
+    auto_rows_html = ""
+    # Also build summary progress bars
     auto_progress = ""
+    cat_rows = ""
+    ch_stats_html = ""
+
+    total_ch = {}
+    for s in stores:
+        for ch, cnt in s["automations"].get("ch_msgs", {}).items():
+            total_ch[ch] = total_ch.get(ch, 0) + cnt
+
+    ch_stats_html = f"""<div class="ch-stat" data-ch="all">
+        <div class="ch-item"><span class="ch-dot" style="background:#1d4ed8"></span>Email: {fmt_num(total_ch.get('email'))}</div>
+        <div class="ch-item"><span class="ch-dot" style="background:#16a34a"></span>SMS: {fmt_num(total_ch.get('sms'))}</div>
+        <div class="ch-item"><span class="ch-dot" style="background:#7c3aed"></span>Push: {fmt_num(total_ch.get('push'))}</div>
+      </div>"""
+    for s in stores:
+        ch = s["automations"].get("ch_msgs", {})
+        ch_stats_html += f"""
+      <div class="ch-stat" data-ch="{s['id']}" hidden>
+        <div class="ch-item"><span class="ch-dot" style="background:#1d4ed8"></span>Email: {fmt_num(ch.get('email'))}</div>
+        <div class="ch-item"><span class="ch-dot" style="background:#16a34a"></span>SMS: {fmt_num(ch.get('sms'))}</div>
+        <div class="ch-item"><span class="ch-dot" style="background:#7c3aed"></span>Push: {fmt_num(ch.get('push'))}</div>
+      </div>"""
+
     for s in stores:
         auto  = s["automations"]
         total = max(auto["total"], 1)
         pct   = round(auto["active"] / total * 100)
         bs    = auto.get("by_status", {})
         auto_progress += f"""
-        <div class="prog-row">
+        <div class="prog-row" data-store="{s['id']}">
           <div class="prog-label" style="color:{s['color']}">{s['id']}</div>
           <div class="prog-track">
             <div class="prog-fill" style="width:{pct}%;background:{s['color']}"></div>
@@ -409,66 +538,71 @@ def build_html(stores, campaigns, display_range, updated_at):
           </div>
         </div>"""
 
-    # ── 5b. Automations — category breakdown (GT-US only, richest data) ──
-    cat_rows = ""
-    gt_us = next((s for s in stores if s["id"] == "GT-US"), None)
-    if gt_us:
-        for cat, counts in sorted(gt_us["automations"].get("by_cat", {}).items(),
-                                  key=lambda x: -x[1]["total"]):
+        is_default = s["id"] == "GT-US"
+        for cat, counts in sorted(auto.get("by_cat", {}).items(), key=lambda x: -x[1]["total"]):
             icon    = CAT_ICONS.get(cat, "🔧")
             enabled = counts["enabled"]
             total_c = counts["total"]
             pct_c   = round(enabled / max(total_c, 1) * 100)
+            hidden_attr = "" if is_default else " hidden"
             cat_rows += f"""
-            <div class="cat-row">
+            <div class="cat-row" data-store="{s['id']}"{hidden_attr}>
               <div class="cat-label">{icon} {cat}</div>
               <div class="prog-track" style="flex:1;margin:0 10px">
-                <div class="prog-fill" style="width:{pct_c}%;background:#2563eb"></div>
+                <div class="prog-fill" style="width:{pct_c}%;background:{s['color']}"></div>
               </div>
               <div class="cat-count">{enabled}/{total_c} active</div>
             </div>"""
 
-    # ── 6. Subscriber growth ──
-    growth_rows = ""
-    for s in stores:
-        g   = s["growth"]
-        sub = g.get("subscribedEmail", 0) or 0
-        uns = g.get("unsubscribedEmail", 0) or 0
-        sms = g.get("subscribedSms", 0) or 0
-        net = sub - uns
-        growth_rows += f"""
-        <tr>
+        for row in auto.get("rows", []):
+            st_cls = status_cls(row["status"])
+            auto_rows_html += f"""
+        <tr data-store="{s['id']}" data-channel="{row['channels']}">
           <td><div class="store-cell">
             <span class="dot" style="background:{s['color']}"></span>
-            <span class="fw6">{s['flag']} {s['id']}</span>
+            <span>{s['flag']} {s['id']}</span>
           </div></td>
-          <td class="num pos">{fmt_num(sub)}</td>
-          <td class="num neg">−{fmt_num(uns)}</td>
-          <td><span class="heat {growth_cls(net)}">{'+' if net > 0 else ''}{fmt_num(net)}</span></td>
-          <td class="num muted">{fmt_num(sms) if sms else '—'}</td>
+          <td class="camp-name" title="{row['name']}">{row['name']}</td>
+          <td><span class="tag tag-auto">{row['category']}</span></td>
+          <td class="muted small">{row['channels']}</td>
+          <td><span class="{st_cls}">{row['status']}</span></td>
+          <td class="muted small">{row['trigger']}</td>
         </tr>"""
 
-    # ── 7. Segments ──
-    max_seg  = max((s["segments"]["count"] for s in stores), default=1)
-    seg_rows = ""
-    for s in stores:
-        seg   = s["segments"]
-        label = f"{seg['count']}+" if seg["plus"] else str(seg["count"])
-        width = round(seg["count"] / max(max_seg, 1) * 100)
-        seg_rows += f"""
-        <div class="prog-row">
-          <div class="prog-label" style="color:{s['color']}">{s['id']}</div>
-          <div class="prog-track">
-            <div class="prog-fill" style="width:{max(width,4)}%;background:{s['color']};opacity:.75"></div>
-          </div>
-          <div class="prog-count">{label}</div>
-        </div>"""
+    if not auto_rows_html:
+        auto_rows_html = '<tr class="empty-row"><td colspan="6">No automation data available</td></tr>'
 
-    # ── channel breakdown for automations footer ──
-    total_ch = {}
+    # ────────────────────────────────────────────────────────────────────────
+    # VIEW 4 — Form detail table
+    # ────────────────────────────────────────────────────────────────────────
+    form_rows = ""
     for s in stores:
-        for ch, cnt in s["automations"].get("ch_msgs", {}).items():
-            total_ch[ch] = total_ch.get(ch, 0) + cnt
+        for f in s.get("forms", []):
+            f_type = f.get("type", "—")
+            type_cls = "tag-popup" if "popup" in f_type.lower() else ("tag-embed" if "embed" in f_type.lower() else "tag-email")
+            st_cls = status_cls(f.get("status", ""))
+            form_rows += f"""
+        <tr data-store="{s['id']}">
+          <td><div class="store-cell">
+            <span class="dot" style="background:{s['color']}"></span>
+            <span>{s['flag']} {s['id']}</span>
+          </div></td>
+          <td class="camp-name" title="{f['name']}">{f['name']}</td>
+          <td><span class="tag {type_cls}">{f_type}</span></td>
+          <td><span class="{st_cls}">{f.get('status','—')}</span></td>
+          <td class="num">{fmt_num(f.get('views'))}</td>
+          <td><span class="heat h-gray">{fmt_pct(f.get('interaction_rate'))}</span></td>
+          <td><span class="heat h-gray">{fmt_pct(f.get('submit_rate'))}</span></td>
+          <td><span class="heat h-gray">{fmt_pct(f.get('signup_rate'))}</span></td>
+        </tr>"""
+
+    if not form_rows:
+        form_rows = '<tr class="empty-row"><td colspan="8">No form data available</td></tr>'
+
+    # ────────────────────────────────────────────────────────────────────────
+    # Assemble HTML
+    # ────────────────────────────────────────────────────────────────────────
+    store_ids_js = str(store_ids)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -480,76 +614,87 @@ def build_html(stores, campaigns, display_range, updated_at):
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
     font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, "PingFang SC", sans-serif;
-    background: #f0f2f5;
-    color: #1e293b;
-    font-size: 14px;
-    line-height: 1.5;
+    background: #f0f2f5; color: #1e293b; font-size: 14px; line-height: 1.5;
   }}
 
-  /* ── Top bar ── */
+  /* ── Topbar ── */
   .topbar {{
-    background: #fff;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 0 28px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    background: #fff; border-bottom: 1px solid #e2e8f0;
+    padding: 0 24px; height: 52px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
     box-shadow: 0 1px 3px rgba(0,0,0,.06);
   }}
-  .topbar-left {{ display: flex; align-items: center; gap: 14px; }}
-  .topbar-logo {{ font-size: 16px; font-weight: 700; color: #0f172a; letter-spacing: -.3px; }}
+  .topbar-logo {{ font-size: 15px; font-weight: 700; color: #0f172a; }}
   .topbar-logo span {{ color: #2563eb; }}
-  .topbar-range {{
-    font-size: 11px; color: #64748b; background: #f1f5f9;
-    padding: 3px 10px; border-radius: 20px; border: 1px solid #e2e8f0;
-  }}
-  .topbar-nav {{ display: flex; gap: 2px; }}
-  .topbar-nav a {{
-    font-size: 12px; font-weight: 500; color: #64748b;
-    padding: 5px 10px; border-radius: 6px; text-decoration: none;
-    transition: background .1s, color .1s;
-  }}
-  .topbar-nav a:hover {{ background: #f1f5f9; color: #0f172a; }}
-  .topbar-right {{ display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8; }}
-  .live-dot {{
-    width: 6px; height: 6px; background: #22c55e; border-radius: 50%;
-    display: inline-block; animation: blink 2s infinite;
-  }}
+  .topbar-right {{ font-size: 11px; color: #94a3b8; display:flex; align-items:center; gap:6px; }}
+  .live-dot {{ width:6px; height:6px; background:#22c55e; border-radius:50%; display:inline-block; animation:blink 2s infinite; }}
   @keyframes blink {{ 0%,100%{{opacity:1}} 50%{{opacity:.3}} }}
 
-  /* ── Layout ── */
-  .page {{ max-width: 1440px; margin: 0 auto; padding: 24px 20px 60px; }}
+  /* ── Filter bar ── */
+  .filter-bar {{
+    background: #fff; border-bottom: 1px solid #e2e8f0;
+    padding: 10px 24px; position: sticky; top: 52px; z-index: 99;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }}
+  .filter-label {{ font-size: 11px; color: #94a3b8; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }}
+  .filter-group {{ display: flex; align-items: center; gap: 6px; }}
+  .filter-group label {{ font-size: 11px; color: #64748b; font-weight: 600; white-space: nowrap; }}
+  .filter-select {{
+    font-size: 12px; font-weight: 600; color: #0f172a;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    padding: 5px 28px 5px 10px; background: #fff;
+    appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 9px center;
+    transition: border-color .15s;
+  }}
+  .filter-select:focus {{ outline: none; border-color: #2563eb; }}
+  .filter-sep {{ width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }}
+  .filter-date-badge {{
+    font-size: 11px; color: #64748b; background: #f1f5f9;
+    padding: 4px 10px; border-radius: 20px; border: 1px solid #e2e8f0; white-space: nowrap;
+  }}
 
-  /* ── Section label ── */
+  /* Type buttons */
+  .type-group {{ display: flex; gap: 4px; }}
+  .type-btn {{
+    padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid #e2e8f0; background: #fff; color: #64748b;
+    transition: all .15s; white-space: nowrap;
+  }}
+  .type-btn:hover {{ border-color: #94a3b8; color: #0f172a; }}
+  .type-btn.active {{ border-color: #2563eb; color: #2563eb; background: #eff6ff; }}
+
+  /* ── Layout ── */
+  .page {{ max-width: 1440px; margin: 0 auto; padding: 20px 20px 60px; }}
+  .view {{ display: none; }}
+  .view.active {{ display: block; }}
+
+  /* ── Section title ── */
   .section-title {{
     font-size: 11px; font-weight: 700; letter-spacing: 1px;
     text-transform: uppercase; color: #94a3b8;
-    margin: 32px 0 14px;
+    margin: 28px 0 12px;
     display: flex; align-items: center; gap: 10px;
   }}
   .section-title .st-icon {{ font-size: 14px; }}
-  .section-title::after {{
-    content: ''; flex: 1; height: 1px; background: #e2e8f0;
-  }}
+  .section-title::after {{ content: ''; flex: 1; height: 1px; background: #e2e8f0; }}
 
-  /* ── Cards grid ── */
+  /* ── KPI cards ── */
   .cards-grid {{
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 12px;
-    margin-bottom: 8px;
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 8px;
+    transition: all .2s;
   }}
   @media (max-width: 1280px) {{ .cards-grid {{ grid-template-columns: repeat(4,1fr); }} }}
   @media (max-width: 700px)  {{ .cards-grid {{ grid-template-columns: repeat(2,1fr); }} }}
+  .cards-grid.single-store {{ grid-template-columns: repeat(3, minmax(0,320px)) !important; }}
 
   .card {{
     background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
-    padding: 16px 14px 12px;
-    transition: box-shadow .15s, transform .15s;
+    padding: 16px 14px 12px; transition: box-shadow .15s, transform .15s;
   }}
   .card:hover {{ box-shadow: 0 4px 16px rgba(0,0,0,.07); transform: translateY(-1px); }}
   .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }}
@@ -557,7 +702,7 @@ def build_html(stores, campaigns, display_range, updated_at):
   .card-currency {{ font-size: 11px; color: #94a3b8; font-weight: 500; }}
   .card-name {{ font-size: 11px; color: #64748b; margin-bottom: 12px; font-weight: 500; }}
   .card-metrics {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }}
-  .m-label {{ font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 1px; }}
+  .m-label {{ font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }}
   .m-value {{ font-size: 15px; font-weight: 700; color: #0f172a; line-height: 1.2; }}
   .card-footer {{
     display: flex; flex-wrap: wrap; gap: 5px;
@@ -574,55 +719,61 @@ def build_html(stores, campaigns, display_range, updated_at):
     overflow: hidden; margin-bottom: 14px;
   }}
   .panel-head {{
-    padding: 14px 18px 12px;
-    border-bottom: 1px solid #f1f5f9;
+    padding: 13px 18px 11px; border-bottom: 1px solid #f1f5f9;
     display: flex; align-items: baseline; gap: 8px;
   }}
   .panel-head-title {{ font-size: 13px; font-weight: 700; color: #0f172a; }}
   .panel-head-sub {{ font-size: 11px; color: #94a3b8; }}
 
   /* ── Tables ── */
-  .table-wrap {{ background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 14px; }}
-  table {{ width: 100%; border-collapse: collapse; }}
+  .table-wrap {{
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    overflow: hidden; margin-bottom: 14px; overflow-x: auto;
+  }}
+  table {{ width: 100%; border-collapse: collapse; min-width: 700px; }}
   thead th {{
     background: #f8fafc; text-align: left;
-    padding: 9px 14px; font-size: 11px; font-weight: 700;
+    padding: 9px 12px; font-size: 10px; font-weight: 700;
     color: #64748b; text-transform: uppercase; letter-spacing: .6px;
     border-bottom: 1px solid #e2e8f0; white-space: nowrap;
   }}
   thead th.num {{ text-align: right; }}
-  tbody td {{ padding: 11px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }}
+  tbody td {{ padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }}
   tbody tr:last-child td {{ border-bottom: none; }}
   tbody tr:hover td {{ background: #fafbfc; }}
   .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
   .muted {{ color: #94a3b8; }}
+  .small {{ font-size: 12px; }}
   .fw6 {{ font-weight: 600; }}
   .pos {{ color: #16a34a; font-weight: 600; }}
   .neg {{ color: #dc2626; font-weight: 500; }}
-
-  /* ── Divider column in split table ── */
   .divider-col {{ width: 1px; background: #e2e8f0; padding: 0; }}
   thead th.divider-col {{ background: #e2e8f0; }}
 
   /* ── Store cell ── */
-  .store-cell {{ display: flex; align-items: center; gap: 8px; }}
+  .store-cell {{ display: flex; align-items: center; gap: 7px; }}
   .dot {{ width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }}
 
-  /* ── Heatmap badges ── */
-  .heat {{
-    display: inline-block; padding: 2px 8px; border-radius: 5px;
-    font-size: 12px; font-weight: 600;
-  }}
+  /* ── Heat badges ── */
+  .heat {{ display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }}
   .h-green  {{ background: #dcfce7; color: #15803d; }}
   .h-yellow {{ background: #fef9c3; color: #a16207; }}
   .h-red    {{ background: #fee2e2; color: #b91c1c; }}
   .h-gray   {{ background: #f1f5f9; color: #64748b; }}
 
-  /* ── Two-col layout ── */
-  .two-col {{
-    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;
-  }}
-  @media (max-width: 860px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
+  /* ── Tags ── */
+  .tag {{ display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; white-space: nowrap; }}
+  .tag-email {{ background: #dbeafe; color: #1d4ed8; }}
+  .tag-sms   {{ background: #dcfce7; color: #15803d; }}
+  .tag-push  {{ background: #ede9fe; color: #7c3aed; }}
+  .tag-auto  {{ background: #fff7ed; color: #c2410c; }}
+  .tag-popup {{ background: #fdf4ff; color: #a21caf; }}
+  .tag-embed {{ background: #f0fdf4; color: #15803d; }}
+
+  /* ── Status text ── */
+  .status-on   {{ font-size: 11px; font-weight: 700; color: #16a34a; }}
+  .status-off  {{ font-size: 11px; font-weight: 600; color: #94a3b8; }}
+  .status-draft {{ font-size: 11px; font-weight: 600; color: #d97706; }}
 
   /* ── Progress rows ── */
   .prog-row {{
@@ -632,93 +783,114 @@ def build_html(stores, campaigns, display_range, updated_at):
   .prog-row:last-child {{ border-bottom: none; }}
   .prog-label {{ width: 86px; flex-shrink: 0; font-size: 12px; font-weight: 700; }}
   .prog-track {{ flex: 1; height: 7px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }}
-  .prog-fill {{ height: 100%; border-radius: 4px; }}
-  .prog-count {{ width: 40px; text-align: right; font-size: 12px; color: #64748b; flex-shrink: 0; font-weight: 500; }}
-  .prog-meta {{ display: flex; align-items: center; gap: 5px; flex-shrink: 0; }}
+  .prog-fill  {{ height: 100%; border-radius: 4px; }}
+  .prog-count {{ width: 40px; text-align: right; font-size: 12px; color: #64748b; flex-shrink: 0; }}
+  .prog-meta  {{ display: flex; align-items: center; gap: 5px; flex-shrink: 0; }}
 
-  /* ── Category rows (automation) ── */
+  /* ── Category rows ── */
   .cat-row {{
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 18px; border-bottom: 1px solid #f8fafc;
+    padding: 7px 18px; border-bottom: 1px solid #f8fafc;
   }}
   .cat-row:last-child {{ border-bottom: none; }}
   .cat-label {{ width: 160px; flex-shrink: 0; font-size: 12px; color: #374151; font-weight: 500; }}
   .cat-count {{ width: 90px; text-align: right; font-size: 11px; color: #64748b; flex-shrink: 0; }}
 
   /* ── Pills ── */
-  .pill {{
-    font-size: 10px; font-weight: 600; padding: 1px 6px;
-    border-radius: 10px; flex-shrink: 0;
-  }}
+  .pill {{ font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; flex-shrink: 0; }}
   .pill-green {{ background: #dcfce7; color: #16a34a; }}
   .pill-gray  {{ background: #f1f5f9; color: #64748b; }}
   .pill-dim   {{ background: #fef9c3; color: #92400e; }}
 
-  /* ── Tags ── */
-  .tag {{ display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }}
-  .tag-email {{ background: #dbeafe; color: #1d4ed8; }}
-  .tag-sms   {{ background: #dcfce7; color: #15803d; }}
-  .tag-push  {{ background: #ede9fe; color: #7c3aed; }}
+  /* ── Two-col ── */
+  .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }}
+  @media (max-width: 860px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
 
-  /* ── Campaign name ── */
-  .camp-name {{ font-weight: 500; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-
-  /* ── Status ── */
-  .status-sent {{ font-size: 12px; color: #16a34a; font-weight: 600; }}
-
-  /* ── Channel mini badges ── */
+  /* ── Channel stat strip ── */
   .ch-stat {{ display: flex; gap: 12px; padding: 10px 18px; border-top: 1px solid #f1f5f9; }}
   .ch-item {{ display: flex; align-items: center; gap: 5px; font-size: 11px; color: #64748b; }}
-  .ch-dot {{ width: 8px; height: 8px; border-radius: 50%; }}
+  .ch-dot  {{ width: 8px; height: 8px; border-radius: 50%; }}
 
-  /* ── Footer ── */
-  .footer {{
-    margin-top: 48px; padding: 18px 0 0; border-top: 1px solid #e2e8f0;
-    display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8;
-  }}
+  /* ── Camp name ellipsis ── */
+  .camp-name {{ font-weight: 500; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
 
   /* ── Legend ── */
-  .legend {{
-    display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px;
-    font-size: 11px; color: #64748b;
-  }}
+  .legend {{ display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: 11px; color: #64748b; }}
   .legend-item {{ display: flex; align-items: center; gap: 5px; }}
 
-  /* ── Section anchor scroll offset ── */
-  .anchor {{ scroll-margin-top: 68px; }}
+  /* ── Empty / scroll offset ── */
+  .anchor {{ scroll-margin-top: 110px; }}
+  .empty-row td {{ text-align: center; color: #94a3b8; padding: 24px; font-size: 12px; }}
+
+  /* ── Footer ── */
+  .footer {{ margin-top: 48px; padding: 18px 0 0; border-top: 1px solid #e2e8f0;
+    display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; }}
 </style>
 </head>
 <body>
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="topbar-left">
-    <div class="topbar-logo">Omnisend <span>Dashboard</span></div>
-    <div class="topbar-range">📅 {display_range}</div>
-  </div>
-  <nav class="topbar-nav">
-    <a href="#analytics">📊 Analytics</a>
-    <a href="#campaigns">📧 Campaigns</a>
-    <a href="#automations">⚡ Automations</a>
-    <a href="#growth">🌱 Growth</a>
-    <a href="#segments">🎯 Segments</a>
-  </nav>
+  <div class="topbar-logo">Omnisend <span>Dashboard</span></div>
   <div class="topbar-right">
     <span class="live-dot"></span>
     Updated weekly &nbsp;·&nbsp; {updated_at}
   </div>
 </div>
 
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <span class="filter-label">筛选</span>
+
+  <div class="filter-group">
+    <label>📅 Date</label>
+    <span class="filter-date-badge" id="date-badge">{display_range}</span>
+  </div>
+
+  <div class="filter-sep"></div>
+
+  <div class="filter-group">
+    <label>Market</label>
+    <select class="filter-select" id="sel-market" onchange="applyFilters()">
+      {market_opts}    </select>
+  </div>
+
+  <div class="filter-group">
+    <label>Channel</label>
+    <select class="filter-select" id="sel-channel" onchange="applyFilters()">
+      <option value="all">All Channels</option>
+      <option value="EDM">📧 EDM</option>
+      <option value="SMS">💬 SMS</option>
+      <option value="Push">🔔 Push</option>
+    </select>
+  </div>
+
+  <div class="filter-sep"></div>
+
+  <div class="filter-group">
+    <label>View</label>
+    <div class="type-group">
+      <button class="type-btn active" data-type="overview"  onclick="setType('overview')">📊 Overview</button>
+      <button class="type-btn"        data-type="campaign"  onclick="setType('campaign')">📧 Campaign</button>
+      <button class="type-btn"        data-type="automation" onclick="setType('automation')">⚡ Automation</button>
+      <button class="type-btn"        data-type="form"      onclick="setType('form')">📋 Form</button>
+    </div>
+  </div>
+</div>
+
 <div class="page">
 
-  <!-- STORE CARDS -->
+<!-- ═══════════════════════════════════════════════════════════════
+     VIEW: OVERVIEW
+═══════════════════════════════════════════════════════════════ -->
+<div id="view-overview" class="view active">
+
   <div class="section-title"><span class="st-icon">🏪</span> Store Overview — Last 30 Days</div>
-  <div class="cards-grid">
+  <div class="cards-grid" id="cards-grid">
 {cards_html}
   </div>
 
-  <!-- ANALYTICS TABLE -->
-  <div class="section-title anchor" id="analytics"><span class="st-icon">📊</span> Email Performance Analytics</div>
+  <div class="section-title"><span class="st-icon">📊</span> Email Performance Analytics</div>
   <div class="legend">
     <div class="legend-item"><span class="heat h-green" style="font-size:10px">●</span> Open ≥45% · CTR ≥2.5% · Unsub ≤0.4%</div>
     <div class="legend-item"><span class="heat h-yellow" style="font-size:10px">●</span> Moderate</div>
@@ -738,17 +910,15 @@ def build_html(stores, campaigns, display_range, updated_at):
           <th>Unsub Rate</th>
         </tr>
       </thead>
-      <tbody>{table_rows}</tbody>
+      <tbody id="analytics-tbody">{analytics_rows}</tbody>
     </table>
   </div>
 
-  <!-- CAMPAIGN vs AUTOMATION SPLIT -->
-  <div class="section-title anchor" id="campaigns"><span class="st-icon">📧</span> Campaigns</div>
-
+  <div class="section-title"><span class="st-icon">📧</span> Campaign vs Automation</div>
   <div class="panel">
     <div class="panel-head">
-      <span class="panel-head-title">Campaign vs Automation Performance</span>
-      <span class="panel-head-sub">Last 30 days — attributed revenue by source type</span>
+      <span class="panel-head-title">Performance Split by Source</span>
+      <span class="panel-head-sub">Last 30 days</span>
     </div>
     <table>
       <thead>
@@ -759,68 +929,16 @@ def build_html(stores, campaigns, display_range, updated_at):
           <th class="num" colspan="4" style="border-bottom:1px solid #7c3aed22;color:#7c3aed">⚡ Automations</th>
         </tr>
         <tr>
-          <th class="num">Sent</th>
-          <th>Open%</th>
-          <th class="num">Revenue</th>
-          <th class="num">Orders</th>
+          <th class="num">Sent</th><th>Open%</th><th class="num">Revenue</th><th class="num">Orders</th>
           <th class="divider-col" style="display:none"></th>
-          <th class="num">Sent</th>
-          <th>Open%</th>
-          <th class="num">Revenue</th>
-          <th class="num">Orders</th>
+          <th class="num">Sent</th><th>Open%</th><th class="num">Revenue</th><th class="num">Orders</th>
         </tr>
       </thead>
-      <tbody>{split_rows}</tbody>
+      <tbody id="split-tbody">{split_rows}</tbody>
     </table>
   </div>
 
-  <!-- RECENT CAMPAIGNS -->
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Store</th>
-          <th>Campaign / Subject</th>
-          <th>Channel</th>
-          <th>Sent Date</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>{camp_rows}</tbody>
-    </table>
-  </div>
-
-  <!-- AUTOMATIONS -->
-  <div class="section-title anchor" id="automations"><span class="st-icon">⚡</span> Automation Health</div>
-  <div class="two-col">
-
-    <!-- Active / Total per store -->
-    <div class="panel">
-      <div class="panel-head">
-        <span class="panel-head-title">Active Flows by Store</span>
-        <span class="panel-head-sub">enabled / disabled / draft</span>
-      </div>
-{auto_progress}
-      <div class="ch-stat">
-        <div class="ch-item"><span class="ch-dot" style="background:#1d4ed8"></span>Email messages: {fmt_num(total_ch.get('email'))}</div>
-        <div class="ch-item"><span class="ch-dot" style="background:#16a34a"></span>SMS messages: {fmt_num(total_ch.get('sms'))}</div>
-        <div class="ch-item"><span class="ch-dot" style="background:#7c3aed"></span>Push messages: {fmt_num(total_ch.get('push'))}</div>
-      </div>
-    </div>
-
-    <!-- Category breakdown (GT-US) -->
-    <div class="panel">
-      <div class="panel-head">
-        <span class="panel-head-title">Flow Categories — GT-US</span>
-        <span class="panel-head-sub">active / total by trigger type</span>
-      </div>
-{cat_rows}
-    </div>
-
-  </div>
-
-  <!-- SUBSCRIBER GROWTH -->
-  <div class="section-title anchor" id="growth"><span class="st-icon">🌱</span> Subscriber Growth <span style="font-size:11px;font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0">— via forms &amp; signup sources, last 30 days</span></div>
+  <div class="section-title"><span class="st-icon">🌱</span> Subscriber Growth <span style="font-size:11px;font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0">— last 30 days</span></div>
   <div class="table-wrap">
     <table>
       <thead>
@@ -832,19 +950,123 @@ def build_html(stores, campaigns, display_range, updated_at):
           <th class="num">New SMS Subs</th>
         </tr>
       </thead>
-      <tbody>{growth_rows}</tbody>
+      <tbody id="growth-tbody">{growth_rows}</tbody>
     </table>
   </div>
 
-  <!-- SEGMENTS -->
-  <div class="section-title anchor" id="segments"><span class="st-icon">🎯</span> Segment Coverage</div>
-  <div class="panel">
+  <div class="section-title"><span class="st-icon">🎯</span> Segment Coverage</div>
+  <div class="panel" id="seg-panel">
     <div class="panel-head">
       <span class="panel-head-title">Configured Segments per Store</span>
-      <span class="panel-head-sub">lifecycle · behavioral · membership · product interest</span>
     </div>
 {seg_rows}
   </div>
+
+</div><!-- /view-overview -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     VIEW: CAMPAIGN
+═══════════════════════════════════════════════════════════════ -->
+<div id="view-campaign" class="view">
+
+  <div class="section-title"><span class="st-icon">📧</span> Recent Campaigns</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Market</th>
+          <th>Campaign / Subject</th>
+          <th>Channel</th>
+          <th>Send Date</th>
+          <th>Status</th>
+          <th class="num">Sent</th>
+          <th>Open%</th>
+          <th class="num">Opens</th>
+          <th>CTR</th>
+          <th class="num">Clicks</th>
+          <th class="num">Revenue</th>
+          <th class="num">Orders</th>
+          <th>Unsub%</th>
+        </tr>
+      </thead>
+      <tbody id="camp-tbody">{camp_rows}</tbody>
+    </table>
+  </div>
+
+</div><!-- /view-campaign -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     VIEW: AUTOMATION
+═══════════════════════════════════════════════════════════════ -->
+<div id="view-automation" class="view">
+
+  <div class="section-title"><span class="st-icon">⚡</span> Automation Health</div>
+  <div class="two-col">
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-head-title">Active Flows by Store</span>
+        <span class="panel-head-sub">enabled / disabled / draft</span>
+      </div>
+{auto_progress}
+{ch_stats_html}
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-head-title" id="cat-panel-title">Flow Categories — GT-US</span>
+        <span class="panel-head-sub">active / total by trigger</span>
+      </div>
+{cat_rows}
+    </div>
+  </div>
+
+  <div class="section-title"><span class="st-icon">⚡</span> All Automations</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Market</th>
+          <th>Automation Name</th>
+          <th>Category</th>
+          <th>Channels</th>
+          <th>Status</th>
+          <th>Trigger</th>
+        </tr>
+      </thead>
+      <tbody id="auto-tbody">{auto_rows_html}</tbody>
+    </table>
+  </div>
+
+</div><!-- /view-automation -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     VIEW: FORM
+═══════════════════════════════════════════════════════════════ -->
+<div id="view-form" class="view">
+
+  <div class="section-title"><span class="st-icon">📋</span> Signup Forms</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Market</th>
+          <th>Form Name</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th class="num">Views</th>
+          <th>Interaction%</th>
+          <th>Submit%</th>
+          <th>Signup%</th>
+        </tr>
+      </thead>
+      <tbody id="form-tbody">{form_rows}</tbody>
+    </table>
+  </div>
+
+</div><!-- /view-form -->
+
 
   <!-- FOOTER -->
   <div class="footer">
@@ -852,7 +1074,96 @@ def build_html(stores, campaigns, display_range, updated_at):
     <div>Auto-refreshes every Monday 08:00 UTC · {updated_at}</div>
   </div>
 
-</div>
+</div><!-- /page -->
+
+<script>
+const STORE_IDS = {store_ids_js};
+let currentType = 'overview';
+
+// ── View switching ────────────────────────────────────────────────────────────
+function setType(t) {{
+  currentType = t;
+  document.querySelectorAll('.type-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.type === t));
+  document.querySelectorAll('.view').forEach(v =>
+    v.classList.toggle('active', v.id === 'view-' + t));
+  applyFilters();
+}}
+
+// ── Main filter function ──────────────────────────────────────────────────────
+function applyFilters() {{
+  const market  = document.getElementById('sel-market').value;   // "all" or store id
+  const channel = document.getElementById('sel-channel').value;  // "all" | "EDM" | "SMS" | "Push"
+
+  // ── Overview: KPI cards ──
+  const cards = document.querySelectorAll('#cards-grid .card[data-store]');
+  let visibleCards = 0;
+  cards.forEach(el => {{
+    const show = market === 'all' || el.dataset.store === market;
+    el.hidden = !show;
+    if (show) visibleCards++;
+  }});
+  document.getElementById('cards-grid')
+    .classList.toggle('single-store', visibleCards === 1);
+
+  // ── Overview: table rows (data-store only, no channel filter) ──
+  ['analytics-tbody', 'split-tbody', 'growth-tbody'].forEach(id => {{
+    const tbody = document.getElementById(id);
+    if (!tbody) return;
+    tbody.querySelectorAll('tr[data-store]').forEach(row => {{
+      row.hidden = market !== 'all' && row.dataset.store !== market;
+    }});
+  }});
+
+  // Segment bars (data-store, no channel)
+  document.querySelectorAll('#seg-panel .prog-row[data-store]').forEach(el => {{
+    el.hidden = market !== 'all' && el.dataset.store !== market;
+  }});
+
+  // ── Automation health panels ──
+  document.querySelectorAll('#view-automation .prog-row[data-store]').forEach(el => {{
+    el.hidden = market !== 'all' && el.dataset.store !== market;
+  }});
+  document.querySelectorAll('[data-ch]').forEach(el => {{
+    el.hidden = el.dataset.ch !== (market === 'all' ? 'all' : market);
+  }});
+  document.querySelectorAll('.cat-row[data-store]').forEach(el => {{
+    el.hidden = market === 'all'
+      ? el.dataset.store !== 'GT-US'
+      : el.dataset.store !== market;
+  }});
+  const catTitle = document.getElementById('cat-panel-title');
+  if (catTitle) catTitle.textContent =
+    market === 'all' ? 'Flow Categories — GT-US' : 'Flow Categories — ' + market;
+
+  // ── Campaign rows (market + channel) ──
+  filterDetailTable('camp-tbody',  market, channel);
+
+  // ── Automation rows (market + channel) ──
+  filterDetailTable('auto-tbody',  market, channel);
+
+  // ── Form rows (market only, no channel) ──
+  filterDetailTable('form-tbody',  market, 'all');
+}}
+
+function filterDetailTable(tbodyId, market, channel) {{
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+  let anyVisible = false;
+  tbody.querySelectorAll('tr[data-store]').forEach(row => {{
+    const mOk = market  === 'all' || row.dataset.store   === market;
+    const chOk = channel === 'all' || (row.dataset.channel && row.dataset.channel.includes(channel));
+    row.hidden = !(mOk && chOk);
+    if (!row.hidden) anyVisible = true;
+  }});
+  // empty-state row
+  const empty = tbody.querySelector('tr.empty-row');
+  if (empty) empty.hidden = anyVisible;
+}}
+
+// init
+applyFilters();
+</script>
 </body>
 </html>"""
 
