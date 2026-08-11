@@ -158,28 +158,24 @@ def fetch_campaigns(key, n=30):
         if not _debug_printed:
             import json as _json
             cid = c.get("id", "")
-            # Try analytics with campaignID dimension
             now_iso = datetime.now(timezone.utc)
             d_to   = now_iso.strftime("%Y-%m-%dT23:59:59Z")
             d_from = (now_iso - timedelta(days=60)).strftime("%Y-%m-%dT00:00:00Z")
+            # Try with absolute-count metrics only (no rate metrics)
             r_ana = safe_post(f"{BASE}/api/analytics/statistics", key, {"queries": [{
                 "alias": "by_camp",
                 "dateRange": {"interval": "custom", "from": d_from, "to": d_to},
                 "dimensions": [{"name": "campaignID"}],
-                "metrics": [{"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
-                             {"name": "revenue"}, {"name": "orders"}, {"name": "unsubscribeRate"}],
+                "metrics": [{"name": "sent"}, {"name": "opened"}, {"name": "clicked"},
+                             {"name": "revenue"}, {"name": "orders"}, {"name": "unsubscribed"}],
             }]})
             stats_list = r_ana.get("statistics", [{}])
             rows = stats_list[0].get("rows", []) if stats_list else []
-            print(f"DEBUG analytics by campaignID rows count: {len(rows)}")
+            print(f"DEBUG campaignID dim absolute metrics: rows={len(rows)} err={_json.dumps(r_ana)[:300] if not rows else ''}")
             if rows:
-                print(f"DEBUG first row keys: {list(rows[0].keys())}")
                 print(f"DEBUG first row: {_json.dumps(rows[0])[:400]}")
-                # Check if our campaign ID appears
                 match = next((r for r in rows if r.get("campaignID") == cid), None)
-                print(f"DEBUG match for {cid}: {_json.dumps(match)[:400] if match else 'NOT FOUND'}")
-            else:
-                print(f"DEBUG analytics error: {_json.dumps(r_ana)[:400]}")
+                print(f"DEBUG match for {cid}: {_json.dumps(match)[:400] if match else 'NOT FOUND in '+str(len(rows))+' rows'}")
             _debug_printed = True
         def st(*keys):
             return _pick(stats, *keys) or _pick(summary, *keys)
