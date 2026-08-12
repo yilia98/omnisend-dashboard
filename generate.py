@@ -153,12 +153,75 @@ def fetch_campaigns(key, n=30):
         ch = c.get("channel", "email").lower()
         ch_label = {"email": "EDM", "sms": "SMS", "push": "Push"}.get(ch, ch.upper())
         items.append({
+            "id":      c.get("id", ""),
             "name":    c.get("content", {}).get("email", {}).get("subject") or c.get("name", "—"),
             "channel": ch_label,
             "status":  c.get("status", "—"),
             "sent_at": c.get("startedAt") or c.get("createdAt", ""),
         })
     return items
+
+
+def fetch_campaign_stats(key, date_from, date_to):
+    """Per-campaign performance via the analytics *reports* endpoint (the one that
+    accepts rate/revenue metrics; /statistics does not). Omnisend models
+    campaigns as 'marketing activities', so the per-campaign dimension is
+    marketingActivityID (parallel to the working marketingActivityType). Account
+    dialects vary, so we probe a few candidate dimension names and use whichever
+    the API accepts. OPENS/CLICKS are derived as rate × sent (openRate is a
+    unique-open rate, so OPENS is unique opens — consistent with Open%)."""
+    metrics = [
+        {"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
+        {"name": "attributedRevenue"}, {"name": "attributedOrders"},
+        {"name": "unsubscribeRate"},
+    ]
+    candidates = ["marketingActivityID", "marketingActivityId", "marketingActivity",
+                  "campaignID", "campaignId", "campaign"]
+    rows, used_dim = [], None
+    for dim in candidates:
+        try:
+            r = requests.post(f"{BASE}/api/analytics/reports", headers=_hdrs(key),
+                              json={"queries": [{
+                                  "alias": "by_camp",
+                                  "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
+                                  "dimensions": [{"name": dim}],
+                                  "metrics": metrics,
+                              }]}, timeout=25)
+        except Exception as e:
+            print(f"  camp_stats dim={dim} EXC {e}")
+            continue
+        if r.status_code != 200:
+            print(f"  camp_stats dim={dim} → {r.status_code}: {r.text[:400]}")
+            continue
+        reps = r.json().get("reports", [])
+        rr = reps[0].get("rows", []) if reps else []
+        print(f"  camp_stats dim={dim} OK rows={len(rr)}"
+              + (f" keys={list(rr[0].keys())}" if rr else ""))
+        if rr:
+            rows, used_dim = rr, dim
+            break
+
+    out = {}
+    for r in rows:
+        cid = (r.get(used_dim) if used_dim else None) or r.get("marketingActivityID") \
+              or r.get("campaignID") or r.get("campaignId")
+        if not cid:
+            continue
+        sent  = r.get("sent")
+        orate = r.get("openRate")
+        crate = r.get("clickRate")
+        out[cid] = {
+            "sent":      sent,
+            "openRate":  orate,
+            "clickRate": crate,
+            "revenue":   r.get("attributedRevenue"),
+            "orders":    r.get("attributedOrders"),
+            "unsubRate": r.get("unsubscribeRate"),
+            "opens":     round(orate * sent) if (orate is not None and sent) else None,
+            "clicks":    round(crate * sent) if (crate is not None and sent) else None,
+        }
+    print(f"  campaign_stats final rows={len(out)} dim={used_dim}")
+    return out
 
 
 def fetch_automations(key):
@@ -294,12 +357,17 @@ def status_cls(st):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
     now          = datetime.now(timezone.utc)
+    PICKER_DAYS  = 92          # how far back the custom-range picker may go
+    STAT_DAYS    = 120         # window for per-campaign stats (covers recent campaigns)
     date_to      = now.strftime("%Y-%m-%dT23:59:59Z")
     date_from_30 = (now - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00Z")
     date_from_7  = (now - timedelta(days=7)).strftime("%Y-%m-%dT00:00:00Z")
+    date_from_stat  = (now - timedelta(days=STAT_DAYS)).strftime("%Y-%m-%dT00:00:00Z")
     display_30   = f"{(now - timedelta(days=30)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
     display_7    = f"{(now - timedelta(days=7)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
     updated_at   = now.strftime("%Y-%m-%d %H:%M UTC")
+    range_min    = (now - timedelta(days=PICKER_DAYS)).strftime("%Y-%m-%d")
+    range_max    = now.strftime("%Y-%m-%d")
 
     store_data = []
 
@@ -319,6 +387,7 @@ def main():
                 "automations":  empty_auto,
                 "segments":     {"count": 0, "plus": False},
                 "campaigns":    [],
+                "camp_stats":   {},
                 "forms":        [],
             })
             continue
@@ -332,17 +401,18 @@ def main():
             "automations":  fetch_automations(key),
             "segments":     fetch_segments(key),
             "campaigns":    fetch_campaigns(key, 30),
+            "camp_stats":   fetch_campaign_stats(key, date_from_stat, date_to),
             "forms":        fetch_forms(key),
         })
 
-    html = build_html(store_data, display_30, display_7, updated_at)
+    html = build_html(store_data, display_30, display_7, updated_at, range_min, range_max)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
     print("✅  index.html generated.")
 
 
 # ─── HTML builder ─────────────────────────────────────────────────────────────
-def build_html(stores, display_30, display_7, updated_at):
+def build_html(stores, display_30, display_7, updated_at, range_min="", range_max=""):
 
     import json as _json
 
@@ -514,12 +584,28 @@ def build_html(stores, display_30, display_7, updated_at):
     # ────────────────────────────────────────────────────────────────────────
     camp_rows = ""
     for s in stores:
+        cstats = s.get("camp_stats", {})
         for c in s["campaigns"]:
             ch = c["channel"]
             ch_cls = {"EDM": "tag-email", "SMS": "tag-sms", "Push": "tag-push"}.get(ch, "tag-email")
             st_cls = status_cls(c["status"])
+            st = cstats.get(c.get("id", ""), {})
+            sent   = st.get("sent")
+            orate  = st.get("openRate")
+            crate  = st.get("clickRate")
+            opens  = st.get("opens")
+            clicks = st.get("clicks")
+            rev    = st.get("revenue")
+            orders = st.get("orders")
+            unsub  = st.get("unsubRate")
             camp_rows += f"""
-        <tr data-store="{s['id']}" data-channel="{ch}" data-sent-at="{c['sent_at']}" data-in-range="1">
+        <tr data-store="{s['id']}" data-channel="{ch}" data-sent-at="{c['sent_at']}" data-in-range="1"
+            data-cur="{s['currency']}"
+            data-sent="{sent if sent is not None else ''}"
+            data-opens="{opens if opens is not None else ''}"
+            data-clicks="{clicks if clicks is not None else ''}"
+            data-rev="{rev if rev is not None else ''}"
+            data-orders="{orders if orders is not None else ''}">
           <td><div class="store-cell">
             <span class="dot" style="background:{s['color']}"></span>
             <span>{s['flag']} {s['id']}</span>
@@ -528,10 +614,18 @@ def build_html(stores, display_30, display_7, updated_at):
           <td><span class="tag {ch_cls}">{ch}</span></td>
           <td class="muted small">{fmt_date(c['sent_at'])}</td>
           <td><span class="{st_cls}">{c['status']}</span></td>
+          <td class="num">{fmt_num(sent)}</td>
+          <td><span class="heat {ctr_cls(crate)}">{fmt_pct(crate)}</span></td>
+          <td><span class="heat {open_cls(orate)}">{fmt_pct(orate)}</span></td>
+          <td class="num">{fmt_num(opens)}</td>
+          <td class="num">{fmt_num(clicks)}</td>
+          <td class="num fw6">{fmt_rev(rev, s['currency'])}</td>
+          <td class="num">{fmt_num(orders)}</td>
+          <td><span class="heat {unsub_cls(unsub)}">{fmt_pct(unsub)}</span></td>
         </tr>"""
 
     if not camp_rows:
-        camp_rows = '<tr class="empty-row"><td colspan="5">No campaign data available</td></tr>'
+        camp_rows = '<tr class="empty-row"><td colspan="13">No campaign data available</td></tr>'
 
     # ────────────────────────────────────────────────────────────────────────
     # VIEW 3 — Automation detail table
@@ -755,6 +849,17 @@ def build_html(stores, display_30, display_7, updated_at):
     padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;
   }}
 
+  /* ── KPI banner (Campaign view) ── */
+  .kpi-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }}
+  @media (max-width: 700px) {{ .kpi-grid {{ grid-template-columns: repeat(2, 1fr); }} }}
+  .kpi-card {{
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 14px 16px; border-top: 3px solid #2563eb;
+  }}
+  .kpi-label {{ font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .6px; font-weight: 700; }}
+  .kpi-val {{ font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1.3; margin-top: 2px; }}
+  .kpi-sub {{ font-size: 10px; color: #94a3b8; }}
+
   /* ── Panels ── */
   .panel {{
     background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
@@ -889,11 +994,12 @@ def build_html(stores, display_30, display_7, updated_at):
     <div class="type-group">
       <button class="type-btn" data-range="7"  onclick="setRange('7')" id="rbtn-7">近7天</button>
       <button class="type-btn active" data-range="30" onclick="setRange('30')" id="rbtn-30">近30天</button>
+      <button class="type-btn" data-range="custom" onclick="setRange('custom')" id="rbtn-custom">自定义</button>
     </div>
     <div id="custom-range-wrap" style="display:none;align-items:center;gap:4px">
-      <input type="date" class="filter-select" id="custom-from" style="padding:4px 8px">
+      <input type="date" class="filter-select" id="custom-from" min="{range_min}" max="{range_max}" value="{range_min}" style="padding:4px 8px" onchange="applyCustomRange()">
       <span style="color:#94a3b8;font-size:12px">–</span>
-      <input type="date" class="filter-select" id="custom-to" style="padding:4px 8px">
+      <input type="date" class="filter-select" id="custom-to" min="{range_min}" max="{range_max}" value="{range_max}" style="padding:4px 8px" onchange="applyCustomRange()">
     </div>
     <span class="filter-date-badge" id="date-badge">{display_30}</span>
   </div>
@@ -936,7 +1042,9 @@ def build_html(stores, display_30, display_7, updated_at):
 ═══════════════════════════════════════════════════════════════ -->
 <div id="view-overview" class="view active">
 
-  <div class="section-title"><span class="st-icon">🏪</span> Store Overview — Last 30 Days</div>
+  <div class="section-title"><span class="st-icon">🏪</span> Store Overview — Last 30 Days
+    <span id="ov-custom-note" style="display:none;font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0;font-size:11px">· 总览按近30天显示；自定义区间应用于 Campaign 视图</span>
+  </div>
   <div class="cards-grid" id="cards-grid">
 {cards_html}
   </div>
@@ -1034,6 +1142,14 @@ def build_html(stores, display_30, display_7, updated_at):
           <th>Channel</th>
           <th>Send Date</th>
           <th>Status</th>
+          <th class="num">Sent</th>
+          <th>CTR</th>
+          <th>Open%</th>
+          <th class="num">Opens</th>
+          <th class="num">Clicks</th>
+          <th class="num">Revenue</th>
+          <th class="num">Orders</th>
+          <th>Unsub%</th>
         </tr>
       </thead>
       <tbody id="camp-tbody">{camp_rows}</tbody>
@@ -1128,9 +1244,13 @@ const DATA_30    = {data_30_json};
 const DATA_7     = {data_7_json};
 const DISPLAY_30 = "{display_30}";
 const DISPLAY_7  = "{display_7}";
+const RANGE_MIN  = "{range_min}";
+const RANGE_MAX  = "{range_max}";
 
 let currentType  = 'overview';
 let currentRange = '30';
+let customFrom   = RANGE_MIN;
+let customTo     = RANGE_MAX;
 
 // ── Formatters (mirror Python) ───────────────────────────────────────────────
 function fmtNum(n) {{
@@ -1169,27 +1289,56 @@ function growthCls(net) {{
 }}
 function heat(cls, txt) {{ return `<span class="heat ${{cls}}">${{txt}}</span>`; }}
 
+// ── Range data resolution ─────────────────────────────────────────────────────
+// The Overview aggregates (all-channel totals incl. automations) are only
+// available from Omnisend for the 7d / 30d windows. A custom range drives the
+// Campaign view (filtered by send date); the Overview falls back to 30d and
+// shows a note so the numbers are never mislabelled.
+function rangeData(sid) {{
+  if (currentRange === '7') return DATA_7[sid];
+  return DATA_30[sid];
+}}
+
 // ── Date range switching ──────────────────────────────────────────────────────
+function updateBadge() {{
+  const badge = document.getElementById('date-badge');
+  if (!badge) return;
+  if (currentRange === '7')       badge.textContent = DISPLAY_7;
+  else if (currentRange === '30') badge.textContent = DISPLAY_30;
+  else                            badge.textContent = customFrom + ' – ' + customTo;
+  const note = document.getElementById('ov-custom-note');
+  if (note) note.style.display = (currentRange === 'custom') ? 'inline' : 'none';
+}}
+
 function setRange(r) {{
   currentRange = r;
   document.querySelectorAll('[data-range]').forEach(b =>
     b.classList.toggle('active', b.dataset.range === r));
-  const badge = document.getElementById('date-badge');
-  if (badge) badge.textContent = r === '7' ? DISPLAY_7 : DISPLAY_30;
+  const wrap = document.getElementById('custom-range-wrap');
+  if (wrap) wrap.style.display = (r === 'custom') ? 'flex' : 'none';
+  updateBadge();
+  updateCampDateFilter();
   updateOverviewData();
   updateCampKpis();
-  updateCampDateFilter();
   applyFilters();
 }}
 
+function applyCustomRange() {{
+  const f = document.getElementById('custom-from').value;
+  const t = document.getElementById('custom-to').value;
+  if (f) customFrom = f;
+  if (t) customTo = t;
+  if (customFrom > customTo) {{ const tmp = customFrom; customFrom = customTo; customTo = tmp; }}
+  setRange('custom');
+}}
+
 function updateOverviewData() {{
-  const data = currentRange === '7' ? DATA_7 : DATA_30;
   STORE_IDS.forEach(sid => {{
-    const d = data[sid];
+    const d = rangeData(sid);
     if (!d) return;
     const cur = d.currency;
-    // Cards
     const el = id => document.getElementById(id);
+    // Cards
     if (el('val-sent-' + sid))   el('val-sent-' + sid).textContent   = fmtNum(d.sent);
     if (el('val-open-' + sid))   el('val-open-' + sid).textContent   = fmtPct(d.openRate);
     if (el('val-ctr-' + sid))    el('val-ctr-' + sid).textContent    = fmtPct(d.clickRate);
@@ -1203,15 +1352,17 @@ function updateOverviewData() {{
     if (el('tbl-trev-' + sid))   el('tbl-trev-' + sid).textContent   = fmtRev(d.totalRev, cur);
     if (el('tbl-orders-' + sid)) el('tbl-orders-' + sid).textContent = fmtNum(d.orders);
     if (el('tbl-unsub-' + sid))  el('tbl-unsub-' + sid).innerHTML    = heat(unsubCls(d.unsubRate), fmtPct(d.unsubRate));
-    // Split table
-    if (el('sp-csent-' + sid))   el('sp-csent-' + sid).textContent   = fmtNum(d.campSent);
-    if (el('sp-copen-' + sid))   el('sp-copen-' + sid).innerHTML     = heat(openCls(d.campOpen), fmtPct(d.campOpen));
-    if (el('sp-crev-' + sid))    el('sp-crev-' + sid).textContent    = fmtRev(d.campRev, cur);
-    if (el('sp-corders-' + sid)) el('sp-corders-' + sid).textContent = fmtNum(d.campOrders);
-    if (el('sp-asent-' + sid))   el('sp-asent-' + sid).textContent   = fmtNum(d.autoSent);
-    if (el('sp-aopen-' + sid))   el('sp-aopen-' + sid).innerHTML     = heat(openCls(d.autoOpen), fmtPct(d.autoOpen));
-    if (el('sp-arev-' + sid))    el('sp-arev-' + sid).textContent    = fmtRev(d.autoRev, cur);
-    if (el('sp-aorders-' + sid)) el('sp-aorders-' + sid).textContent = fmtNum(d.autoOrders);
+    // Split table (per-source split not available at daily granularity → show 30d)
+    const spd = (currentRange === 'custom') ? (DATA_30[sid] || {{}}) : d;
+    const spcur = spd.currency || cur;
+    if (el('sp-csent-' + sid))   el('sp-csent-' + sid).textContent   = fmtNum(spd.campSent);
+    if (el('sp-copen-' + sid))   el('sp-copen-' + sid).innerHTML     = heat(openCls(spd.campOpen), fmtPct(spd.campOpen));
+    if (el('sp-crev-' + sid))    el('sp-crev-' + sid).textContent    = fmtRev(spd.campRev, spcur);
+    if (el('sp-corders-' + sid)) el('sp-corders-' + sid).textContent = fmtNum(spd.campOrders);
+    if (el('sp-asent-' + sid))   el('sp-asent-' + sid).textContent   = fmtNum(spd.autoSent);
+    if (el('sp-aopen-' + sid))   el('sp-aopen-' + sid).innerHTML     = heat(openCls(spd.autoOpen), fmtPct(spd.autoOpen));
+    if (el('sp-arev-' + sid))    el('sp-arev-' + sid).textContent    = fmtRev(spd.autoRev, spcur);
+    if (el('sp-aorders-' + sid)) el('sp-aorders-' + sid).textContent = fmtNum(spd.autoOrders);
     // Growth table
     if (el('gr-sub-' + sid))     el('gr-sub-' + sid).textContent     = fmtNum(d.subEmail);
     if (el('gr-uns-' + sid))     el('gr-uns-' + sid).textContent     = '−' + fmtNum(d.unsubEmail);
@@ -1220,47 +1371,55 @@ function updateOverviewData() {{
   }});
 }}
 
-// ── Campaign KPI summary banner ──────────────────────────────────────────────
+// ── Campaign KPI summary banner — aggregated from the visible (in-range) rows ──
 function updateCampKpis() {{
-  const data = currentRange === '7' ? DATA_7 : DATA_30;
-  const market = currentMarket;
-  const ids = market === 'all' ? STORE_IDS : [market];
-  let totSent = 0, totRev = 0, totOrders = 0;
-  let sumOpenW = 0, sumOpenBase = 0;
-  ids.forEach(sid => {{
-    const d = data[sid];
-    if (!d) return;
-    totSent   += d.campSent   || 0;
-    totRev    += d.campRev    || 0;
-    totOrders += d.campOrders || 0;
-    if (d.campOpen != null && d.campSent) {{
-      sumOpenW    += d.campOpen * d.campSent;
-      sumOpenBase += d.campSent;
-    }}
+  const market  = document.getElementById('sel-market').value;
+  const channel = document.getElementById('sel-channel').value;
+  let sent = 0, opens = 0, clicks = 0, rev = 0, orders = 0;
+  const curSet = new Set();
+  const num = v => (v === '' || v == null) ? 0 : parseFloat(v);
+  document.querySelectorAll('#camp-tbody tr[data-store]').forEach(row => {{
+    if (row.dataset.inRange === '0') return;
+    if (market !== 'all' && row.dataset.store !== market) return;
+    if (channel !== 'all' && !((row.dataset.channel || '').includes(channel))) return;
+    sent   += num(row.dataset.sent);
+    opens  += num(row.dataset.opens);
+    clicks += num(row.dataset.clicks);
+    rev    += num(row.dataset.rev);
+    orders += num(row.dataset.orders);
+    if (row.dataset.cur && num(row.dataset.rev)) curSet.add(row.dataset.cur);
   }});
-  const avgOpen = sumOpenBase ? sumOpenW / sumOpenBase : null;
-  // Use first store's currency for revenue (mixed currencies: show USD total if all market)
-  const cur = (market !== 'all' && data[market]) ? data[market].currency : 'USD';
+  const avgOpen = sent ? opens / sent : null;
+  const mixed = curSet.size > 1;
+  const cur = curSet.size === 1 ? [...curSet][0] : 'USD';
+  const revSub = mixed ? 'Attributed · mixed currencies' : 'Attributed';
   const grid = document.getElementById('camp-kpi-grid');
   if (!grid) return;
   grid.innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">CAMPAIGN SENT</div><div class="kpi-val">${{fmtNum(totSent)}}</div></div>
-    <div class="kpi-card"><div class="kpi-label">AVG OPEN RATE</div><div class="kpi-val">${{fmtPct(avgOpen)}}</div></div>
-    <div class="kpi-card"><div class="kpi-label">CAMPAIGN REVENUE</div><div class="kpi-val">${{fmtRev(totRev, cur)}}</div><div class="kpi-sub">Attributed</div></div>
-    <div class="kpi-card"><div class="kpi-label">CAMPAIGN ORDERS</div><div class="kpi-val">${{fmtNum(totOrders)}}</div><div class="kpi-sub">Attributed</div></div>
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN SENT</div><div class="kpi-val">${{fmtNum(sent)}}</div><div class="kpi-sub">${{fmtNum(clicks)}} clicks</div></div>
+    <div class="kpi-card"><div class="kpi-label">AVG OPEN RATE</div><div class="kpi-val">${{fmtPct(avgOpen)}}</div><div class="kpi-sub">${{fmtNum(opens)}} opens</div></div>
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN REVENUE</div><div class="kpi-val">${{fmtRev(rev, cur)}}</div><div class="kpi-sub">${{revSub}}</div></div>
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN ORDERS</div><div class="kpi-val">${{fmtNum(orders)}}</div><div class="kpi-sub">Attributed</div></div>
   `;
 }}
 
-// ── Campaign date filter (7d hides rows older than 7 days) ───────────────────
+// ── Campaign date filter (marks rows in/out of the active range by send date) ──
 function updateCampDateFilter() {{
-  const cutoff = currentRange === '7' ? 7 : 30;
   const now = new Date();
+  let fromT, toT;
+  if (currentRange === 'custom') {{
+    fromT = new Date(customFrom + 'T00:00:00Z');
+    toT   = new Date(customTo   + 'T23:59:59Z');
+  }} else {{
+    const cutoff = currentRange === '7' ? 7 : 30;
+    fromT = new Date(now.getTime() - cutoff * 86400000);
+    toT   = now;
+  }}
   document.querySelectorAll('#camp-tbody tr[data-store]').forEach(row => {{
     const dateStr = row.dataset.sentAt;
-    if (!dateStr) return;
+    if (!dateStr) {{ row.dataset.inRange = '1'; return; }}
     const sent = new Date(dateStr);
-    const days = (now - sent) / 86400000;
-    row.dataset.inRange = days <= cutoff ? '1' : '0';
+    row.dataset.inRange = (sent >= fromT && sent <= toT) ? '1' : '0';
   }});
 }}
 
