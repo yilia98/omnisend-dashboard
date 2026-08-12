@@ -6,6 +6,7 @@ Three view modes, client-side JS switching.
 """
 
 import os
+import html
 import requests
 from datetime import datetime, timedelta, timezone
 
@@ -598,19 +599,25 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
             rev    = st.get("revenue")
             orders = st.get("orders")
             unsub  = st.get("unsubRate")
+            nm_esc = html.escape(c["name"], quote=True)
             camp_rows += f"""
         <tr data-store="{s['id']}" data-channel="{ch}" data-sent-at="{c['sent_at']}" data-in-range="1"
             data-cur="{s['currency']}"
+            data-name="{nm_esc}"
+            data-status="{c['status']}"
             data-sent="{sent if sent is not None else ''}"
+            data-open="{orate if orate is not None else ''}"
+            data-ctr="{crate if crate is not None else ''}"
             data-opens="{opens if opens is not None else ''}"
             data-clicks="{clicks if clicks is not None else ''}"
             data-rev="{rev if rev is not None else ''}"
-            data-orders="{orders if orders is not None else ''}">
+            data-orders="{orders if orders is not None else ''}"
+            data-unsub="{unsub if unsub is not None else ''}">
           <td><div class="store-cell">
             <span class="dot" style="background:{s['color']}"></span>
             <span>{s['flag']} {s['id']}</span>
           </div></td>
-          <td class="camp-name" title="{c['name']}">{c['name']}</td>
+          <td class="camp-name" title="{nm_esc}">{nm_esc}</td>
           <td><span class="tag {ch_cls}">{ch}</span></td>
           <td class="muted small">{fmt_date(c['sent_at'])}</td>
           <td><span class="{st_cls}">{c['status']}</span></td>
@@ -803,6 +810,16 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
   }}
   .type-btn:hover {{ border-color: #94a3b8; color: #0f172a; }}
   .type-btn.active {{ border-color: #2563eb; color: #2563eb; background: #eff6ff; }}
+
+  /* Export button (right side of filter bar) */
+  .export-btn {{
+    margin-left: auto; padding: 6px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    border: 1.5px solid #16a34a; color: #fff; background: #16a34a;
+    transition: filter .15s, transform .05s;
+  }}
+  .export-btn:hover {{ filter: brightness(1.07); }}
+  .export-btn:active {{ transform: translateY(1px); }}
 
   /* ── Layout ── */
   .page {{ max-width: 1440px; margin: 0 auto; padding: 20px 20px 60px; }}
@@ -1033,6 +1050,8 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
       <button class="type-btn"        data-type="form"      onclick="setType('form')">📋 Form</button>
     </div>
   </div>
+
+  <button class="export-btn" id="export-btn" onclick="exportCSV()" title="导出当前时间段的所有面板数据为 CSV">⬇ 导出数据</button>
 </div>
 
 <div class="page">
@@ -1505,6 +1524,112 @@ function filterDetailTable(tbodyId, market, channel, checkDateRange) {{
   }});
   const empty = tbody.querySelector('tr.empty-row');
   if (empty) empty.hidden = anyVisible;
+}}
+
+// ── Export all panel data for the selected time range as CSV ──────────────────
+function csvEscape(v) {{
+  v = (v === null || v === undefined) ? '' : String(v);
+  return /[",\\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}}
+
+function exportCSV() {{
+  const market  = document.getElementById('sel-market').value;
+  const channel = document.getElementById('sel-channel').value;
+  const scope   = (market === 'all') ? STORE_IDS : [market];
+  const pct = x => (x == null || x === '') ? '' : (Number(x) * 100).toFixed(2) + '%';
+  const rangeLabel = (currentRange === '7') ? DISPLAY_7
+                   : (currentRange === '30') ? DISPLAY_30
+                   : (customFrom + ' to ' + customTo);
+  const custom = currentRange === 'custom';
+  const ovSuffix = custom ? ' (last 30 days)' : '';
+
+  const lines = [];
+  const L = arr => lines.push(arr.map(csvEscape).join(','));
+
+  L(['Omnisend Dashboard — Data Export']);
+  L(['Date range', rangeLabel]);
+  L(['Market', market === 'all' ? 'All Markets' : market]);
+  L(['Channel', channel === 'all' ? 'All Channels' : channel]);
+  L(['Generated at', new Date().toISOString()]);
+  if (custom) L(['Note', 'Campaigns reflect the selected custom range; Store Overview / Split / Growth reflect the last 30 days (per-period aggregates are only published by Omnisend for 7d / 30d).']);
+  L([]);
+
+  // Store Overview
+  L(['STORE OVERVIEW' + ovSuffix]);
+  L(['Store','Sent','Open Rate','CTR','Attributed Revenue','Total Revenue','Orders','Unsub Rate','Currency']);
+  scope.forEach(sid => {{ const d = rangeData(sid); if (!d) return;
+    L([sid, d.sent, pct(d.openRate), pct(d.clickRate), d.revenue, d.totalRev, d.orders, pct(d.unsubRate), d.currency]); }});
+  L([]);
+
+  // Campaign vs Automation split
+  L(['CAMPAIGN vs AUTOMATION' + ovSuffix]);
+  L(['Store','Campaign Sent','Campaign Open%','Campaign Revenue','Campaign Orders','Automation Sent','Automation Open%','Automation Revenue','Automation Orders','Currency']);
+  scope.forEach(sid => {{ const d = rangeData(sid); if (!d) return;
+    L([sid, d.campSent, pct(d.campOpen), d.campRev, d.campOrders, d.autoSent, pct(d.autoOpen), d.autoRev, d.autoOrders, d.currency]); }});
+  L([]);
+
+  // Subscriber growth
+  L(['SUBSCRIBER GROWTH' + ovSuffix]);
+  L(['Store','New Email Subs','Email Unsubs','Net Growth','New SMS Subs']);
+  scope.forEach(sid => {{ const d = rangeData(sid); if (!d) return;
+    L([sid, d.subEmail, d.unsubEmail, d.netGrowth, d.subSms]); }});
+  L([]);
+
+  // Segments
+  L(['SEGMENTS']);
+  L(['Store','Configured Segments']);
+  document.querySelectorAll('#seg-panel .prog-row[data-store]').forEach(el => {{
+    if (market !== 'all' && el.dataset.store !== market) return;
+    const c = el.querySelector('.prog-count');
+    L([el.dataset.store, c ? c.textContent.trim() : '']);
+  }});
+  L([]);
+
+  // Campaigns (in-range + market + channel)
+  L(['CAMPAIGNS (' + rangeLabel + ')']);
+  L(['Store','Campaign','Channel','Send Date','Status','Sent','CTR','Open%','Opens','Clicks','Revenue','Orders','Unsub%','Currency']);
+  document.querySelectorAll('#camp-tbody tr[data-store]').forEach(r => {{
+    if (r.dataset.inRange === '0') return;
+    if (market !== 'all' && r.dataset.store !== market) return;
+    if (channel !== 'all' && !((r.dataset.channel || '').includes(channel))) return;
+    const d = r.dataset;
+    L([d.store, d.name, d.channel, (d.sentAt || '').slice(0, 10), d.status,
+       d.sent, pct(d.ctr), pct(d.open), d.opens, d.clicks, d.rev, d.orders, pct(d.unsub), d.cur]);
+  }});
+  L([]);
+
+  // Automations (respecting current market + channel filters)
+  L(['AUTOMATIONS']);
+  L(['Store','Automation','Category','Channels','Status','Trigger']);
+  document.querySelectorAll('#auto-tbody tr[data-store]').forEach(r => {{
+    if (r.hidden) return;
+    const c = r.querySelectorAll('td');
+    if (c.length < 6) return;
+    L([r.dataset.store, c[1].textContent.trim(), c[2].textContent.trim(),
+       c[3].textContent.trim(), c[4].textContent.trim(), c[5].textContent.trim()]);
+  }});
+  L([]);
+
+  // Forms (respecting current market filter)
+  L(['FORMS']);
+  L(['Store','Form','Type','Status','Views','Interaction%','Submit%','Signup%']);
+  document.querySelectorAll('#form-tbody tr[data-store]').forEach(r => {{
+    if (r.hidden) return;
+    const c = r.querySelectorAll('td');
+    if (c.length < 8) return;
+    L([r.dataset.store, c[1].textContent.trim(), c[2].textContent.trim(), c[3].textContent.trim(),
+       c[4].textContent.trim(), c[5].textContent.trim(), c[6].textContent.trim(), c[7].textContent.trim()]);
+  }});
+
+  const csv  = String.fromCharCode(0xFEFF) + lines.join('\\r\\n');
+  const blob = new Blob([csv], {{ type: 'text/csv;charset=utf-8;' }});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const tag  = (market === 'all' ? 'all-markets' : market);
+  const rl   = custom ? (customFrom + '_' + customTo) : (currentRange === '7' ? 'last7d' : 'last30d');
+  a.href = url; a.download = 'omnisend_' + tag + '_' + rl + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }}
 
 // init
