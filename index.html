@@ -62,6 +62,16 @@
   .type-btn:hover { border-color: #94a3b8; color: #0f172a; }
   .type-btn.active { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
 
+  /* Export button (right side of filter bar) */
+  .export-btn {
+    margin-left: auto; padding: 6px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    border: 1.5px solid #16a34a; color: #fff; background: #16a34a;
+    transition: filter .15s, transform .05s;
+  }
+  .export-btn:hover { filter: brightness(1.07); }
+  .export-btn:active { transform: translateY(1px); }
+
   /* ── Layout ── */
   .page { max-width: 1440px; margin: 0 auto; padding: 20px 20px 60px; }
   .view { display: none; }
@@ -239,7 +249,7 @@
   <div class="topbar-logo">Omnisend <span>Dashboard</span></div>
   <div class="topbar-right">
     <span class="live-dot"></span>
-    Updated weekly &nbsp;·&nbsp; 2026-08-12 06:01 UTC
+    Updated weekly &nbsp;·&nbsp; 2026-08-12 06:59 UTC
   </div>
 </div>
 
@@ -299,6 +309,8 @@
       <button class="type-btn"        data-type="form"      onclick="setType('form')">📋 Form</button>
     </div>
   </div>
+
+  <button class="export-btn" id="export-btn" onclick="exportCSV()" title="导出当前时间段的所有面板数据为 CSV">⬇ 导出数据</button>
 </div>
 
 <div class="page">
@@ -322,7 +334,7 @@
           <div class="card-metrics">
             <div class="metric-box">
               <div class="m-label" id="lbl-sent-GT-US">Sent</div>
-              <div class="m-value" id="val-sent-GT-US" style="color:#2563eb">1,054,265</div>
+              <div class="m-value" id="val-sent-GT-US" style="color:#2563eb">1,054,324</div>
             </div>
             <div class="metric-box">
               <div class="m-label">Open Rate</div>
@@ -351,11 +363,11 @@
           <div class="card-metrics">
             <div class="metric-box">
               <div class="m-label" id="lbl-sent-GT-CA">Sent</div>
-              <div class="m-value" id="val-sent-GT-CA" style="color:#dc2626">71,914</div>
+              <div class="m-value" id="val-sent-GT-CA" style="color:#dc2626">71,916</div>
             </div>
             <div class="metric-box">
               <div class="m-label">Open Rate</div>
-              <div class="m-value" id="val-open-GT-CA">53.83%</div>
+              <div class="m-value" id="val-open-GT-CA">53.84%</div>
             </div>
             <div class="metric-box">
               <div class="m-label">CTR</div>
@@ -380,11 +392,11 @@
           <div class="card-metrics">
             <div class="metric-box">
               <div class="m-label" id="lbl-sent-GT-UK">Sent</div>
-              <div class="m-value" id="val-sent-GT-UK" style="color:#7c3aed">48,074</div>
+              <div class="m-value" id="val-sent-GT-UK" style="color:#7c3aed">48,075</div>
             </div>
             <div class="metric-box">
               <div class="m-label">Open Rate</div>
-              <div class="m-value" id="val-open-GT-UK">53.40%</div>
+              <div class="m-value" id="val-open-GT-UK">53.41%</div>
             </div>
             <div class="metric-box">
               <div class="m-label">CTR</div>
@@ -413,7 +425,7 @@
             </div>
             <div class="metric-box">
               <div class="m-label">Open Rate</div>
-              <div class="m-value" id="val-open-GT-AU">46.19%</div>
+              <div class="m-value" id="val-open-GT-AU">46.21%</div>
             </div>
             <div class="metric-box">
               <div class="m-label">CTR</div>
@@ -442,7 +454,7 @@
             </div>
             <div class="metric-box">
               <div class="m-label">Open Rate</div>
-              <div class="m-value" id="val-open-GT-DE">37.89%</div>
+              <div class="m-value" id="val-open-GT-DE">37.93%</div>
             </div>
             <div class="metric-box">
               <div class="m-label">CTR</div>
@@ -467,11 +479,11 @@
           <div class="card-metrics">
             <div class="metric-box">
               <div class="m-label" id="lbl-sent-GT-JP">Sent</div>
-              <div class="m-value" id="val-sent-GT-JP" style="color:#db2777">7,155</div>
+              <div class="m-value" id="val-sent-GT-JP" style="color:#db2777">7,158</div>
             </div>
             <div class="metric-box">
               <div class="m-label">Open Rate</div>
-              <div class="m-value" id="val-open-GT-JP">36.56%</div>
+              <div class="m-value" id="val-open-GT-JP">36.55%</div>
             </div>
             <div class="metric-box">
               <div class="m-label">CTR</div>
@@ -500,7 +512,7 @@
             </div>
             <div class="metric-box">
               <div class="m-label">Open Rate</div>
-              <div class="m-value" id="val-open-Gitryin-US">24.92%</div>
+              <div class="m-value" id="val-open-Gitryin-US">24.93%</div>
             </div>
             <div class="metric-box">
               <div class="m-label">CTR</div>
@@ -544,11 +556,11 @@
             <span class="dot" style="background:#2563eb"></span>
             <span class="fw6">🇺🇸 GT-US</span>
           </div></td>
-          <td class="num" id="tbl-sent-GT-US">1,054,265</td>
+          <td class="num" id="tbl-sent-GT-US">1,054,324</td>
           <td id="tbl-open-GT-US"><span class="heat h-green">56.49%</span></td>
           <td id="tbl-ctr-GT-US"><span class="heat h-red">1.31%</span></td>
           <td class="num" id="tbl-rev-GT-US">$367,019</td>
-          <td class="num muted" id="tbl-trev-GT-US">$1,708,590</td>
+          <td class="num muted" id="tbl-trev-GT-US">$1,708,940</td>
           <td class="num fw6" id="tbl-orders-GT-US">1,167</td>
           <td id="tbl-unsub-GT-US"><span class="heat h-yellow">0.48%</span></td>
         </tr>
@@ -557,8 +569,8 @@
             <span class="dot" style="background:#dc2626"></span>
             <span class="fw6">🇨🇦 GT-CA</span>
           </div></td>
-          <td class="num" id="tbl-sent-GT-CA">71,914</td>
-          <td id="tbl-open-GT-CA"><span class="heat h-green">53.83%</span></td>
+          <td class="num" id="tbl-sent-GT-CA">71,916</td>
+          <td id="tbl-open-GT-CA"><span class="heat h-green">53.84%</span></td>
           <td id="tbl-ctr-GT-CA"><span class="heat h-green">2.81%</span></td>
           <td class="num" id="tbl-rev-GT-CA">CA$94,002</td>
           <td class="num muted" id="tbl-trev-GT-CA">CA$418,712</td>
@@ -570,11 +582,11 @@
             <span class="dot" style="background:#7c3aed"></span>
             <span class="fw6">🇬🇧 GT-UK</span>
           </div></td>
-          <td class="num" id="tbl-sent-GT-UK">48,074</td>
-          <td id="tbl-open-GT-UK"><span class="heat h-green">53.40%</span></td>
+          <td class="num" id="tbl-sent-GT-UK">48,075</td>
+          <td id="tbl-open-GT-UK"><span class="heat h-green">53.41%</span></td>
           <td id="tbl-ctr-GT-UK"><span class="heat h-green">2.52%</span></td>
           <td class="num" id="tbl-rev-GT-UK">£27,887</td>
-          <td class="num muted" id="tbl-trev-GT-UK">£120,880</td>
+          <td class="num muted" id="tbl-trev-GT-UK">£120,910</td>
           <td class="num fw6" id="tbl-orders-GT-UK">129</td>
           <td id="tbl-unsub-GT-UK"><span class="heat h-yellow">0.67%</span></td>
         </tr>
@@ -584,7 +596,7 @@
             <span class="fw6">🇦🇺 GT-AU</span>
           </div></td>
           <td class="num" id="tbl-sent-GT-AU">38,329</td>
-          <td id="tbl-open-GT-AU"><span class="heat h-green">46.19%</span></td>
+          <td id="tbl-open-GT-AU"><span class="heat h-green">46.21%</span></td>
           <td id="tbl-ctr-GT-AU"><span class="heat h-green">3.03%</span></td>
           <td class="num" id="tbl-rev-GT-AU">A$44,665</td>
           <td class="num muted" id="tbl-trev-GT-AU">A$240,176</td>
@@ -597,10 +609,10 @@
             <span class="fw6">🇩🇪 GT-DE</span>
           </div></td>
           <td class="num" id="tbl-sent-GT-DE">5,795</td>
-          <td id="tbl-open-GT-DE"><span class="heat h-yellow">37.89%</span></td>
+          <td id="tbl-open-GT-DE"><span class="heat h-yellow">37.93%</span></td>
           <td id="tbl-ctr-GT-DE"><span class="heat h-green">2.90%</span></td>
           <td class="num" id="tbl-rev-GT-DE">€12,766</td>
-          <td class="num muted" id="tbl-trev-GT-DE">€66,437</td>
+          <td class="num muted" id="tbl-trev-GT-DE">€67,065</td>
           <td class="num fw6" id="tbl-orders-GT-DE">42</td>
           <td id="tbl-unsub-GT-DE"><span class="heat h-yellow">0.57%</span></td>
         </tr>
@@ -609,8 +621,8 @@
             <span class="dot" style="background:#db2777"></span>
             <span class="fw6">🇯🇵 GT-JP</span>
           </div></td>
-          <td class="num" id="tbl-sent-GT-JP">7,155</td>
-          <td id="tbl-open-GT-JP"><span class="heat h-yellow">36.56%</span></td>
+          <td class="num" id="tbl-sent-GT-JP">7,158</td>
+          <td id="tbl-open-GT-JP"><span class="heat h-yellow">36.55%</span></td>
           <td id="tbl-ctr-GT-JP"><span class="heat h-red">0.94%</span></td>
           <td class="num" id="tbl-rev-GT-JP">¥156,210</td>
           <td class="num muted" id="tbl-trev-GT-JP">¥2,181,721</td>
@@ -623,7 +635,7 @@
             <span class="fw6">⚡ Gitryin-US</span>
           </div></td>
           <td class="num" id="tbl-sent-Gitryin-US">25,579</td>
-          <td id="tbl-open-Gitryin-US"><span class="heat h-red">24.92%</span></td>
+          <td id="tbl-open-Gitryin-US"><span class="heat h-red">24.93%</span></td>
           <td id="tbl-ctr-Gitryin-US"><span class="heat h-yellow">1.60%</span></td>
           <td class="num" id="tbl-rev-Gitryin-US">$2,751</td>
           <td class="num muted" id="tbl-trev-Gitryin-US">$57,800</td>
@@ -664,8 +676,8 @@
           <td class="num" id="sp-crev-GT-US">$131,911</td>
           <td class="num muted" id="sp-corders-GT-US">413</td>
           <td class="divider-col"></td>
-          <td class="num" id="sp-asent-GT-US">78,884</td>
-          <td id="sp-aopen-GT-US"><span class="heat h-green">50.77%</span></td>
+          <td class="num" id="sp-asent-GT-US">78,943</td>
+          <td id="sp-aopen-GT-US"><span class="heat h-green">50.81%</span></td>
           <td class="num" id="sp-arev-GT-US">$235,107</td>
           <td class="num muted" id="sp-aorders-GT-US">754</td>
         </tr>
@@ -675,12 +687,12 @@
             <span class="fw6">🇨🇦 GT-CA</span>
           </div></td>
           <td class="num" id="sp-csent-GT-CA">62,913</td>
-          <td id="sp-copen-GT-CA"><span class="heat h-green">55.48%</span></td>
+          <td id="sp-copen-GT-CA"><span class="heat h-green">55.49%</span></td>
           <td class="num" id="sp-crev-GT-CA">CA$22,262</td>
           <td class="num muted" id="sp-corders-GT-CA">54</td>
           <td class="divider-col"></td>
-          <td class="num" id="sp-asent-GT-CA">9,001</td>
-          <td id="sp-aopen-GT-CA"><span class="heat h-yellow">42.68%</span></td>
+          <td class="num" id="sp-asent-GT-CA">9,003</td>
+          <td id="sp-aopen-GT-CA"><span class="heat h-yellow">42.73%</span></td>
           <td class="num" id="sp-arev-GT-CA">CA$71,740</td>
           <td class="num muted" id="sp-aorders-GT-CA">190</td>
         </tr>
@@ -690,12 +702,12 @@
             <span class="fw6">🇬🇧 GT-UK</span>
           </div></td>
           <td class="num" id="sp-csent-GT-UK">44,213</td>
-          <td id="sp-copen-GT-UK"><span class="heat h-green">53.90%</span></td>
+          <td id="sp-copen-GT-UK"><span class="heat h-green">53.91%</span></td>
           <td class="num" id="sp-crev-GT-UK">£6,568</td>
           <td class="num muted" id="sp-corders-GT-UK">33</td>
           <td class="divider-col"></td>
-          <td class="num" id="sp-asent-GT-UK">3,861</td>
-          <td id="sp-aopen-GT-UK"><span class="heat h-green">47.79%</span></td>
+          <td class="num" id="sp-asent-GT-UK">3,862</td>
+          <td id="sp-aopen-GT-UK"><span class="heat h-green">47.80%</span></td>
           <td class="num" id="sp-arev-GT-UK">£21,319</td>
           <td class="num muted" id="sp-aorders-GT-UK">96</td>
         </tr>
@@ -705,12 +717,12 @@
             <span class="fw6">🇦🇺 GT-AU</span>
           </div></td>
           <td class="num" id="sp-csent-GT-AU">35,233</td>
-          <td id="sp-copen-GT-AU"><span class="heat h-green">48.21%</span></td>
+          <td id="sp-copen-GT-AU"><span class="heat h-green">48.23%</span></td>
           <td class="num" id="sp-crev-GT-AU">A$18,527</td>
           <td class="num muted" id="sp-corders-GT-AU">28</td>
           <td class="divider-col"></td>
           <td class="num" id="sp-asent-GT-AU">3,096</td>
-          <td id="sp-aopen-GT-AU"><span class="heat h-red">24.06%</span></td>
+          <td id="sp-aopen-GT-AU"><span class="heat h-red">24.10%</span></td>
           <td class="num" id="sp-arev-GT-AU">A$26,138</td>
           <td class="num muted" id="sp-aorders-GT-AU">33</td>
         </tr>
@@ -725,7 +737,7 @@
           <td class="num muted" id="sp-corders-GT-DE">2</td>
           <td class="divider-col"></td>
           <td class="num" id="sp-asent-GT-DE">538</td>
-          <td id="sp-aopen-GT-DE"><span class="heat h-green">53.53%</span></td>
+          <td id="sp-aopen-GT-DE"><span class="heat h-green">53.90%</span></td>
           <td class="num" id="sp-arev-GT-DE">€12,139</td>
           <td class="num muted" id="sp-aorders-GT-DE">40</td>
         </tr>
@@ -739,8 +751,8 @@
           <td class="num" id="sp-crev-GT-JP">¥17,031</td>
           <td class="num muted" id="sp-corders-GT-JP">1</td>
           <td class="divider-col"></td>
-          <td class="num" id="sp-asent-GT-JP">190</td>
-          <td id="sp-aopen-GT-JP"><span class="heat h-red">34.21%</span></td>
+          <td class="num" id="sp-asent-GT-JP">193</td>
+          <td id="sp-aopen-GT-JP"><span class="heat h-red">33.68%</span></td>
           <td class="num" id="sp-arev-GT-JP">¥139,179</td>
           <td class="num muted" id="sp-aorders-GT-JP">8</td>
         </tr>
@@ -780,8 +792,8 @@
             <span class="dot" style="background:#2563eb"></span>
             <span class="fw6">🇺🇸 GT-US</span>
           </div></td>
-          <td class="num pos" id="gr-sub-GT-US">11,289</td>
-          <td class="num neg" id="gr-uns-GT-US">−6,139</td>
+          <td class="num pos" id="gr-sub-GT-US">11,290</td>
+          <td class="num neg" id="gr-uns-GT-US">−6,140</td>
           <td id="gr-net-GT-US"><span class="heat h-green">+5,150</span></td>
           <td class="num muted" id="gr-sms-GT-US">—</td>
         </tr>
@@ -800,9 +812,9 @@
             <span class="dot" style="background:#7c3aed"></span>
             <span class="fw6">🇬🇧 GT-UK</span>
           </div></td>
-          <td class="num pos" id="gr-sub-GT-UK">1,557</td>
+          <td class="num pos" id="gr-sub-GT-UK">1,558</td>
           <td class="num neg" id="gr-uns-GT-UK">−357</td>
-          <td id="gr-net-GT-UK"><span class="heat h-green">+1,200</span></td>
+          <td id="gr-net-GT-UK"><span class="heat h-green">+1,201</span></td>
           <td class="num muted" id="gr-sms-GT-UK">7</td>
         </tr>
         <tr data-store="GT-AU">
@@ -830,9 +842,9 @@
             <span class="dot" style="background:#db2777"></span>
             <span class="fw6">🇯🇵 GT-JP</span>
           </div></td>
-          <td class="num pos" id="gr-sub-GT-JP">143</td>
+          <td class="num pos" id="gr-sub-GT-JP">145</td>
           <td class="num neg" id="gr-uns-GT-JP">−36</td>
-          <td id="gr-net-GT-JP"><span class="heat h-green">+107</span></td>
+          <td id="gr-net-GT-JP"><span class="heat h-green">+109</span></td>
           <td class="num muted" id="gr-sms-GT-JP">—</td>
         </tr>
         <tr data-store="Gitryin-US">
@@ -899,9 +911,9 @@
         <div class="prog-row" data-store="Gitryin-US">
           <div class="prog-label" style="color:#0891b2">Gitryin-US</div>
           <div class="prog-track">
-            <div class="prog-fill" style="width:38%;background:#0891b2;opacity:.75"></div>
+            <div class="prog-fill" style="width:36%;background:#0891b2;opacity:.75"></div>
           </div>
-          <div class="prog-count">19</div>
+          <div class="prog-count">18</div>
         </div>
   </div>
 
@@ -939,11 +951,16 @@
       <tbody id="camp-tbody">
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-08-10T14:30:00Z" data-in-range="1"
             data-cur="USD"
+            data-name="Something Wrong with Your Plant? Try AI Diagnosis"
+            data-status="sent"
             data-sent="35"
+            data-open="0.6857142857142857"
+            data-ctr="0.05714285714285714"
             data-opens="24"
             data-clicks="2"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -963,11 +980,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-08-08T02:05:00.408Z" data-in-range="1"
             data-cur="USD"
+            data-name="✨Summer Essentials, Picked for You"
+            data-status="sent"
             data-sent="128460"
-            data-opens="67848"
+            data-open="0.5282967460688152"
+            data-ctr="0.005900669469095439"
+            data-opens="67865"
             data-clicks="758"
             data-rev="10793.01"
-            data-orders="42">
+            data-orders="42"
+            data-unsub="0.0032461466604390473">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -978,8 +1000,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">128,460</td>
           <td><span class="heat h-red">0.59%</span></td>
-          <td><span class="heat h-green">52.82%</span></td>
-          <td class="num">67,848</td>
+          <td><span class="heat h-green">52.83%</span></td>
+          <td class="num">67,865</td>
           <td class="num">758</td>
           <td class="num fw6">$10,793</td>
           <td class="num">42</td>
@@ -987,11 +1009,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-08-07T14:30:00Z" data-in-range="1"
             data-cur="USD"
+            data-name="🌱GiSpace Is Now Live: Get Smarter Watering Advice "
+            data-status="sent"
             data-sent="36"
+            data-open="0.7777777777777778"
+            data-ctr="0.08333333333333333"
             data-opens="28"
             data-clicks="3"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1011,11 +1038,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-08-06T01:03:00.755Z" data-in-range="1"
             data-cur="USD"
+            data-name="⭐ Build a Smarter Garage This Summer"
+            data-status="sent"
             data-sent="123055"
-            data-opens="70389"
+            data-open="0.5720368940717565"
+            data-ctr="0.006704319206858721"
+            data-opens="70392"
             data-clicks="825"
             data-rev="13434.96"
-            data-orders="30">
+            data-orders="30"
+            data-unsub="0.004030717971638698">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1027,7 +1059,7 @@
           <td class="num">123,055</td>
           <td><span class="heat h-red">0.67%</span></td>
           <td><span class="heat h-green">57.20%</span></td>
-          <td class="num">70,389</td>
+          <td class="num">70,392</td>
           <td class="num">825</td>
           <td class="num fw6">$13,435</td>
           <td class="num">30</td>
@@ -1035,11 +1067,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-08-01T02:05:00.991Z" data-in-range="1"
             data-cur="USD"
+            data-name="🌟 Kickstart your summer upgrade now!"
+            data-status="sent"
             data-sent="136146"
-            data-opens="72412"
+            data-open="0.5318848882816976"
+            data-ctr="0.0061257767396765235"
+            data-opens="72414"
             data-clicks="834"
             data-rev="20144.73"
-            data-orders="60">
+            data-orders="60"
+            data-unsub="0.0036431477972176927">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1051,7 +1088,7 @@
           <td class="num">136,146</td>
           <td><span class="heat h-red">0.61%</span></td>
           <td><span class="heat h-green">53.19%</span></td>
-          <td class="num">72,412</td>
+          <td class="num">72,414</td>
           <td class="num">834</td>
           <td class="num fw6">$20,145</td>
           <td class="num">60</td>
@@ -1059,11 +1096,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-07-29T15:10:27.769Z" data-in-range="1"
             data-cur="USD"
+            data-name="💥Ends Tonight: The Biggest Savings Day!"
+            data-status="sent"
             data-sent="124833"
-            data-opens="69923"
+            data-open="0.5601563689088622"
+            data-ctr="0.006688936419055859"
+            data-opens="69926"
             data-clicks="835"
             data-rev="19878.08"
-            data-orders="64">
+            data-orders="64"
+            data-unsub="0.00442190766864531">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1074,8 +1116,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">124,833</td>
           <td><span class="heat h-red">0.67%</span></td>
-          <td><span class="heat h-green">56.01%</span></td>
-          <td class="num">69,923</td>
+          <td><span class="heat h-green">56.02%</span></td>
+          <td class="num">69,926</td>
           <td class="num">835</td>
           <td class="num fw6">$19,878</td>
           <td class="num">64</td>
@@ -1083,11 +1125,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="SMS" data-sent-at="2026-07-28T15:20:00Z" data-in-range="1"
             data-cur="USD"
+            data-name="MMS-SummerSale"
+            data-status="sent"
             data-sent="11708"
+            data-open="0"
+            data-ctr="0.38998975059788177"
             data-opens="0"
             data-clicks="4566"
             data-rev="3179.65"
-            data-orders="9">
+            data-orders="9"
+            data-unsub="0.006576699692517936">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1107,11 +1154,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-07-25T02:05:00Z" data-in-range="1"
             data-cur="USD"
+            data-name="☀️ Stop Sweating Over Summer Chores"
+            data-status="sent"
             data-sent="132986"
-            data-opens="71244"
+            data-open="0.535733084685606"
+            data-ctr="0.005722406869896079"
+            data-opens="71245"
             data-clicks="761"
             data-rev="15531.81"
-            data-orders="53">
+            data-orders="53"
+            data-unsub="0.004601988179206834">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1123,7 +1175,7 @@
           <td class="num">132,986</td>
           <td><span class="heat h-red">0.57%</span></td>
           <td><span class="heat h-green">53.57%</span></td>
-          <td class="num">71,244</td>
+          <td class="num">71,245</td>
           <td class="num">761</td>
           <td class="num fw6">$15,532</td>
           <td class="num">53</td>
@@ -1131,11 +1183,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-07-22T14:30:00.361Z" data-in-range="1"
             data-cur="USD"
+            data-name="🛠️Find Your Effortless Summer Cleaning Tool"
+            data-status="sent"
             data-sent="80185"
-            data-opens="63804"
+            data-open="0.7957348631290142"
+            data-ctr="0.005250358545862693"
+            data-opens="63806"
             data-clicks="421"
             data-rev="11777.62"
-            data-orders="36">
+            data-orders="36"
+            data-unsub="0.005337656668953046">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1147,7 +1204,7 @@
           <td class="num">80,185</td>
           <td><span class="heat h-red">0.53%</span></td>
           <td><span class="heat h-green">79.57%</span></td>
-          <td class="num">63,804</td>
+          <td class="num">63,806</td>
           <td class="num">421</td>
           <td class="num fw6">$11,778</td>
           <td class="num">36</td>
@@ -1155,11 +1212,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-07-18T02:08:00.408Z" data-in-range="1"
             data-cur="USD"
+            data-name="✨Summer Essentials, Picked for You"
+            data-status="sent"
             data-sent="130077"
-            data-opens="69012"
+            data-open="0.530570354482345"
+            data-ctr="0.0069497297754407"
+            data-opens="69015"
             data-clicks="904"
             data-rev="25680.1"
-            data-orders="80">
+            data-orders="80"
+            data-unsub="0.004581901489117984">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1170,8 +1232,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">130,077</td>
           <td><span class="heat h-red">0.69%</span></td>
-          <td><span class="heat h-green">53.05%</span></td>
-          <td class="num">69,012</td>
+          <td><span class="heat h-green">53.06%</span></td>
+          <td class="num">69,015</td>
           <td class="num">904</td>
           <td class="num fw6">$25,680</td>
           <td class="num">80</td>
@@ -1179,11 +1241,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-07-16T02:05:00.753Z" data-in-range="1"
             data-cur="USD"
+            data-name="🌱New Arrival: Water More, Walk Less"
+            data-status="sent"
             data-sent="76187"
+            data-open="0.5690603383779385"
+            data-ctr="0.00885977922742725"
             data-opens="43355"
             data-clicks="675"
             data-rev="8987.28"
-            data-orders="24">
+            data-orders="24"
+            data-unsub="0.006484045834591203">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1203,11 +1270,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-07-16T02:05:00.753Z" data-in-range="1"
             data-cur="USD"
+            data-name="🌱New Arrival: Water More, Walk Less"
+            data-status="sent"
             data-sent="31350"
-            data-opens="20601"
+            data-open="0.6571610845295056"
+            data-ctr="0.0076236044657097286"
+            data-opens="20602"
             data-clicks="239"
             data-rev="2504.05"
-            data-orders="15">
+            data-orders="15"
+            data-unsub="0.0023923444976076554">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1218,8 +1290,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">31,350</td>
           <td><span class="heat h-red">0.76%</span></td>
-          <td><span class="heat h-green">65.71%</span></td>
-          <td class="num">20,601</td>
+          <td><span class="heat h-green">65.72%</span></td>
+          <td class="num">20,602</td>
           <td class="num">239</td>
           <td class="num fw6">$2,504</td>
           <td class="num">15</td>
@@ -1227,11 +1299,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-07-11T02:05:00.991Z" data-in-range="1"
             data-cur="USD"
+            data-name="☀️ Less Hassle, More Summer Fun"
+            data-status="sent"
             data-sent="132887"
+            data-open="0.4913347430523678"
+            data-ctr="0.007412312716819553"
             data-opens="65292"
             data-clicks="985"
             data-rev="17346.18"
-            data-orders="73">
+            data-orders="73"
+            data-unsub="0.005320309736844085">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1251,11 +1328,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-07-04T02:05:00.791Z" data-in-range="1"
             data-cur="USD"
+            data-name="🗽4th of July Deal + Weekend Bonus!"
+            data-status="sent"
             data-sent="124176"
+            data-open="0.5791215693853885"
+            data-ctr="0.010404587037752867"
             data-opens="71913"
             data-clicks="1292"
             data-rev="34112.28"
-            data-orders="134">
+            data-orders="134"
+            data-unsub="0.006120345316325216">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1275,11 +1357,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-28T14:06:03.29Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏰Final Hours| Prime Week Ends Tonight!"
+            data-status="sent"
             data-sent="60796"
+            data-open="0.17140930324363446"
+            data-ctr="0.00353641686953089"
             data-opens="10421"
             data-clicks="215"
             data-rev="3657.31"
-            data-orders="17">
+            data-orders="17"
+            data-unsub="0.0049674320678992035">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1299,11 +1386,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-27T02:05:00.991Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏳Final 48H Frenzy Sale: Up to $240 off!"
+            data-status="sent"
             data-sent="119881"
+            data-open="0.5405610563809111"
+            data-ctr="0.0074490536448644906"
             data-opens="64803"
             data-clicks="893"
             data-rev="19444.05"
-            data-orders="63">
+            data-orders="63"
+            data-unsub="0.005839123797766118">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1323,11 +1415,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="SMS" data-sent-at="2026-06-25T14:45:00.512Z" data-in-range="1"
             data-cur="USD"
+            data-name="MMS-PrimeWeek2026"
+            data-status="sent"
             data-sent="11989"
+            data-open="0"
+            data-ctr="0.3705062974393194"
             data-opens="0"
             data-clicks="4442"
             data-rev="3412.24"
-            data-orders="11">
+            data-orders="11"
+            data-unsub="0.0057552756693635835">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1347,11 +1444,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-24T13:45:00.991Z" data-in-range="1"
             data-cur="USD"
+            data-name="💥Ends Tonight: The Biggest Savings Day!"
+            data-status="sent"
             data-sent="94553"
+            data-open="0.5329920785168106"
+            data-ctr="0.006134125834188233"
             data-opens="50396"
             data-clicks="580"
             data-rev="14708.07"
-            data-orders="45">
+            data-orders="45"
+            data-unsub="0.006123549755163771">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1371,16 +1473,21 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-23T15:50:12.806Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏰Today&#x27;s Deal: Up to 50% Off Power Washser!"
+            data-status="sent"
             data-sent="26844"
+            data-open="0.5204887498137386"
+            data-ctr="0.013671583966621964"
             data-opens="13972"
             data-clicks="367"
             data-rev="4726.32"
-            data-orders="16">
+            data-orders="16"
+            data-unsub="0.003538965876918492">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
           </div></td>
-          <td class="camp-name" title="⏰Today's Deal: Up to 50% Off Power Washser!">⏰Today's Deal: Up to 50% Off Power Washser!</td>
+          <td class="camp-name" title="⏰Today&#x27;s Deal: Up to 50% Off Power Washser!">⏰Today&#x27;s Deal: Up to 50% Off Power Washser!</td>
           <td><span class="tag tag-email">EDM</span></td>
           <td class="muted small">Jun 23, 2026</td>
           <td><span class="status-on">sent</span></td>
@@ -1395,16 +1502,21 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-23T14:35:00.539Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏰Today&#x27;s Deal: Up to 50% Off Garage Essentials!"
+            data-status="sent"
             data-sent="6270"
+            data-open="0.21052631578947367"
+            data-ctr="0.014354066985645933"
             data-opens="1320"
             data-clicks="90"
             data-rev="421.51"
-            data-orders="7">
+            data-orders="7"
+            data-unsub="0.0049441786283891545">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
           </div></td>
-          <td class="camp-name" title="⏰Today's Deal: Up to 50% Off Garage Essentials!">⏰Today's Deal: Up to 50% Off Garage Essentials!</td>
+          <td class="camp-name" title="⏰Today&#x27;s Deal: Up to 50% Off Garage Essentials!">⏰Today&#x27;s Deal: Up to 50% Off Garage Essentials!</td>
           <td><span class="tag tag-email">EDM</span></td>
           <td class="muted small">Jun 23, 2026</td>
           <td><span class="status-on">sent</span></td>
@@ -1419,11 +1531,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-22T09:18:53.984Z" data-in-range="1"
             data-cur="USD"
+            data-name="F-Prime Week"
+            data-status="sent"
             data-sent="137871"
+            data-open="0.43127996460459417"
+            data-ctr="0.00937833191896773"
             data-opens="59461"
             data-clicks="1293"
             data-rev="20394.24"
-            data-orders="71">
+            data-orders="71"
+            data-unsub="0.004692792537952144">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1443,11 +1560,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-20T02:05:00.991Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏳Final 48 Hours: Up to $220 Off!"
+            data-status="sent"
             data-sent="118179"
+            data-open="0.5125191446872964"
+            data-ctr="0.008394046319566082"
             data-opens="60569"
             data-clicks="992"
             data-rev="14288.58"
-            data-orders="50">
+            data-orders="50"
+            data-unsub="0.005407052014317264">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1467,11 +1589,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-18T14:35:00.266Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏰Last Chance to Get a Free Soil Moisture Meter"
+            data-status="sent"
             data-sent="13401"
+            data-open="0.4550406686068204"
+            data-ctr="0.008805313036340572"
             data-opens="6098"
             data-clicks="118"
             data-rev="9293.42"
-            data-orders="29">
+            data-orders="29"
+            data-unsub="0.007387508394895903">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1491,11 +1618,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-17T15:21:36.083Z" data-in-range="1"
             data-cur="USD"
+            data-name="🎁Last Chance to Surprise Dad!"
+            data-status="sent"
             data-sent="64196"
+            data-open="0.8295999750763288"
+            data-ctr="0.0073836376098199265"
             data-opens="53257"
             data-clicks="474"
             data-rev="9441.25"
-            data-orders="36">
+            data-orders="36"
+            data-unsub="0.005638980621845598">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1515,11 +1647,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="SMS" data-sent-at="2026-06-16T15:05:00.512Z" data-in-range="1"
             data-cur="USD"
+            data-name="MMS-Dad’s Day2"
+            data-status="sent"
             data-sent="12433"
+            data-open="0"
+            data-ctr="0.3621812917236387"
             data-opens="0"
             data-clicks="4503"
             data-rev="3062.19"
-            data-orders="10">
+            data-orders="10"
+            data-unsub="0.00490629775597201">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1539,11 +1676,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-16T14:45:00.266Z" data-in-range="1"
             data-cur="USD"
+            data-name="🎁Get Your Soil Moisture Meter–Join GiSpace Beta"
+            data-status="sent"
             data-sent="5714"
+            data-open="0.3841442072103605"
+            data-ctr="0.002625131256562828"
             data-opens="2195"
             data-clicks="15"
             data-rev="616.97"
-            data-orders="4">
+            data-orders="4"
+            data-unsub="0.003150157507875394">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1563,16 +1705,21 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-15T14:45:00.266Z" data-in-range="1"
             data-cur="USD"
+            data-name="🌱Join GiSpace APP Beta &amp; Get a Free Soil Meter"
+            data-status="sent"
             data-sent="8379"
+            data-open="0.4703425229741019"
+            data-ctr="0.010383100608664519"
             data-opens="3941"
             data-clicks="87"
             data-rev="4200.41"
-            data-orders="13">
+            data-orders="13"
+            data-unsub="0.011695906432748537">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
           </div></td>
-          <td class="camp-name" title="🌱Join GiSpace APP Beta & Get a Free Soil Meter">🌱Join GiSpace APP Beta & Get a Free Soil Meter</td>
+          <td class="camp-name" title="🌱Join GiSpace APP Beta &amp; Get a Free Soil Meter">🌱Join GiSpace APP Beta &amp; Get a Free Soil Meter</td>
           <td><span class="tag tag-email">EDM</span></td>
           <td class="muted small">Jun 15, 2026</td>
           <td><span class="status-on">sent</span></td>
@@ -1587,16 +1734,21 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-13T02:05:00.991Z" data-in-range="1"
             data-cur="USD"
+            data-name="🔥Father&#x27;s Day Savings Just Got Better!"
+            data-status="sent"
             data-sent="123108"
+            data-open="0.48147967638171363"
+            data-ctr="0.007895506384637879"
             data-opens="59274"
             data-clicks="972"
             data-rev="22474.35"
-            data-orders="73">
+            data-orders="73"
+            data-unsub="0.0043376547421776004">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
           </div></td>
-          <td class="camp-name" title="🔥Father's Day Savings Just Got Better!">🔥Father's Day Savings Just Got Better!</td>
+          <td class="camp-name" title="🔥Father&#x27;s Day Savings Just Got Better!">🔥Father&#x27;s Day Savings Just Got Better!</td>
           <td><span class="tag tag-email">EDM</span></td>
           <td class="muted small">Jun 13, 2026</td>
           <td><span class="status-on">sent</span></td>
@@ -1611,11 +1763,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-10T14:55:00.361Z" data-in-range="1"
             data-cur="USD"
+            data-name="✨$220 Off Today: Make Dad’s garage shine"
+            data-status="sent"
             data-sent="68496"
+            data-open="0.8007182901191311"
+            data-ctr="0.008949427703807522"
             data-opens="54846"
             data-clicks="613"
             data-rev="14252.32"
-            data-orders="46">
+            data-orders="46"
+            data-unsub="0.006058747956085027">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1635,11 +1792,16 @@
         </tr>
         <tr data-store="GT-US" data-channel="EDM" data-sent-at="2026-06-06T02:07:00.314Z" data-in-range="1"
             data-cur="USD"
+            data-name="😍Top-Rated by Dads. Loved by Homeowners."
+            data-status="sent"
             data-sent="119818"
+            data-open="0.5086297551286117"
+            data-ctr="0.008053881720609592"
             data-opens="60943"
             data-clicks="965"
             data-rev="24398.64"
-            data-orders="90">
+            data-orders="90"
+            data-unsub="0.005141130714917625">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
@@ -1659,11 +1821,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-08-07T14:35:00.891Z" data-in-range="1"
             data-cur="CAD"
+            data-name="☀️ Uncover your perfect summer gear today!"
+            data-status="sent"
             data-sent="14907"
-            data-opens="8244"
+            data-open="0.553095861004897"
+            data-ctr="0.015496075669148722"
+            data-opens="8245"
             data-clicks="231"
             data-rev="6174.01"
-            data-orders="10">
+            data-orders="10"
+            data-unsub="0.007647413966592876">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1674,8 +1841,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">14,907</td>
           <td><span class="heat h-yellow">1.55%</span></td>
-          <td><span class="heat h-green">55.30%</span></td>
-          <td class="num">8,244</td>
+          <td><span class="heat h-green">55.31%</span></td>
+          <td class="num">8,245</td>
           <td class="num">231</td>
           <td class="num fw6">CA$6,174</td>
           <td class="num">10</td>
@@ -1683,11 +1850,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-07-31T14:35:00.891Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🌟 Kickstart your summer upgrade now!"
+            data-status="sent"
             data-sent="16188"
-            data-opens="8491"
+            data-open="0.5245861131702496"
+            data-ctr="0.016061279960464542"
+            data-opens="8492"
             data-clicks="260"
             data-rev="4601.7"
-            data-orders="12">
+            data-orders="12"
+            data-unsub="0.007289350135903138">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1698,8 +1870,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">16,188</td>
           <td><span class="heat h-yellow">1.61%</span></td>
-          <td><span class="heat h-green">52.45%</span></td>
-          <td class="num">8,491</td>
+          <td><span class="heat h-green">52.46%</span></td>
+          <td class="num">8,492</td>
           <td class="num">260</td>
           <td class="num fw6">CA$4,602</td>
           <td class="num">12</td>
@@ -1707,11 +1879,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="SMS" data-sent-at="2026-07-29T15:05:00.184Z" data-in-range="1"
             data-cur="CAD"
+            data-name="MMS-SummerSale"
+            data-status="sent"
             data-sent="2100"
+            data-open="0"
+            data-ctr="0.2319047619047619"
             data-opens="0"
             data-clicks="487"
             data-rev="899.68"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.015238095238095238">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1731,11 +1908,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-07-25T14:35:00.891Z" data-in-range="1"
             data-cur="CAD"
+            data-name="☀️ Stop Sweating Over Summer Chores"
+            data-status="sent"
             data-sent="14864"
+            data-open="0.5717841765339075"
+            data-ctr="0.016415500538213133"
             data-opens="8499"
             data-clicks="244"
             data-rev="5213.36"
-            data-orders="14">
+            data-orders="14"
+            data-unsub="0.009620559741657696">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1755,11 +1937,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-07-18T14:35:00.891Z" data-in-range="1"
             data-cur="CAD"
+            data-name="✨Summer Essentials, Picked for You"
+            data-status="sent"
             data-sent="14854"
+            data-open="0.5727076881648041"
+            data-ctr="0.021879628382927157"
             data-opens="8507"
             data-clicks="325"
             data-rev="5373.26"
-            data-orders="16">
+            data-orders="16"
+            data-unsub="0.011242762892150263">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1779,11 +1966,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-07-11T14:35:00.891Z" data-in-range="1"
             data-cur="CAD"
+            data-name="☀️ Less Hassle, More Summer Fun"
+            data-status="sent"
             data-sent="14702"
+            data-open="0.5766562372466331"
+            data-ctr="0.022922051421575294"
             data-opens="8478"
             data-clicks="337"
             data-rev="7877.4"
-            data-orders="21">
+            data-orders="21"
+            data-unsub="0.009046388246497075">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1803,11 +1995,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-07-04T14:45:00.757Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🎁Member-Only Weekend Bonus for You"
+            data-status="sent"
             data-sent="16232"
+            data-open="0.5141079349433219"
+            data-ctr="0.018050763923114835"
             data-opens="8345"
             data-clicks="293"
             data-rev="9619.45"
-            data-orders="20">
+            data-orders="20"
+            data-unsub="0.008316904879250863">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1827,11 +2024,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-06-28T14:05:29.409Z" data-in-range="1"
             data-cur="CAD"
+            data-name="⏰ Final Hours | Prime Week Ends Tonight!"
+            data-status="sent"
             data-sent="7203"
+            data-open="0.21379980563654033"
+            data-ctr="0.004026100236012772"
             data-opens="1540"
             data-clicks="29"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.007774538386783284">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1851,11 +2053,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-06-27T02:05:00.551Z" data-in-range="1"
             data-cur="CAD"
+            data-name="⏳Final 48H Frenzy Sale: Up to $300 off!"
+            data-status="sent"
             data-sent="14184"
+            data-open="0.5692329385222786"
+            data-ctr="0.019388042865200225"
             data-opens="8074"
             data-clicks="275"
             data-rev="7499.88"
-            data-orders="18">
+            data-orders="18"
+            data-unsub="0.010786802030456852">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1875,11 +2082,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="SMS" data-sent-at="2026-06-25T15:05:00.184Z" data-in-range="1"
             data-cur="CAD"
+            data-name="MMS-PrimeWeek2026"
+            data-status="sent"
             data-sent="1535"
+            data-open="0"
+            data-ctr="0.2762214983713355"
             data-opens="0"
             data-clicks="424"
             data-rev="278.96"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.01498371335504886">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1899,11 +2111,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-06-22T15:11:45.934Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🔥Prime Week Is Live: Up to $300 OFF!"
+            data-status="sent"
             data-sent="14626"
+            data-open="0.5514836592369753"
+            data-ctr="0.02228907425133324"
             data-opens="8066"
             data-clicks="326"
             data-rev="8809.79"
-            data-orders="22">
+            data-orders="22"
+            data-unsub="0.011007794338848626">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1923,11 +2140,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-06-20T02:05:00.464Z" data-in-range="1"
             data-cur="CAD"
+            data-name="⏳Final 48 Hours: Up to $280 Off!"
+            data-status="sent"
             data-sent="15022"
+            data-open="0.5413393689255758"
+            data-ctr="0.019837571561709493"
             data-opens="8132"
             data-clicks="298"
             data-rev="9244.54"
-            data-orders="20">
+            data-orders="20"
+            data-unsub="0.009386233524164558">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1947,11 +2169,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="SMS" data-sent-at="2026-06-16T15:05:00.184Z" data-in-range="1"
             data-cur="CAD"
+            data-name="MMS-Dad‘s Day 2"
+            data-status="sent"
             data-sent="2224"
+            data-open="0"
+            data-ctr="0.22526978417266186"
             data-opens="0"
             data-clicks="501"
             data-rev="197.5"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.011241007194244604">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -1971,16 +2198,21 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-06-13T14:45:00.464Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🔥Father&#x27;s Day Deal Upgrade: Up to $280 OFF!"
+            data-status="sent"
             data-sent="15835"
+            data-open="0.505967792863909"
+            data-ctr="0.02134512156615093"
             data-opens="8012"
             data-clicks="338"
             data-rev="12168.56"
-            data-orders="31">
+            data-orders="31"
+            data-unsub="0.008967477107672877">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
           </div></td>
-          <td class="camp-name" title="🔥Father's Day Deal Upgrade: Up to $280 OFF!">🔥Father's Day Deal Upgrade: Up to $280 OFF!</td>
+          <td class="camp-name" title="🔥Father&#x27;s Day Deal Upgrade: Up to $280 OFF!">🔥Father&#x27;s Day Deal Upgrade: Up to $280 OFF!</td>
           <td><span class="tag tag-email">EDM</span></td>
           <td class="muted small">Jun 13, 2026</td>
           <td><span class="status-on">sent</span></td>
@@ -1995,11 +2227,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-06-06T02:18:46.826Z" data-in-range="1"
             data-cur="CAD"
+            data-name="😍Top-Rated by Dads. Loved by Homeowners."
+            data-status="sent"
             data-sent="15189"
+            data-open="0.5195207057739153"
+            data-ctr="0.021067878069655672"
             data-opens="7891"
             data-clicks="320"
             data-rev="11197.71"
-            data-orders="31">
+            data-orders="31"
+            data-unsub="0.009546382250312726">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2019,11 +2256,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-05-30T02:05:00.464Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🎁Father’s Day Gift Guide: Save Up to $260!"
+            data-status="sent"
             data-sent="14877"
+            data-open="0.508301404853129"
+            data-ctr="0.022316327216508704"
             data-opens="7562"
             data-clicks="332"
             data-rev="13675.85"
-            data-orders="39">
+            data-orders="39"
+            data-unsub="0.008469449485783424">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2043,11 +2285,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="SMS" data-sent-at="2026-05-28T15:05:00.184Z" data-in-range="1"
             data-cur="CAD"
+            data-name="MMS-Dad‘s Day 2026"
+            data-status="sent"
             data-sent="2313"
+            data-open="0"
+            data-ctr="0.21660181582360571"
             data-opens="0"
             data-clicks="501"
             data-rev="1333.85"
-            data-orders="4">
+            data-orders="4"
+            data-unsub="0.01297016861219196">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2067,11 +2314,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-05-24T01:45:00.464Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🔥Get Him the Best: Up to $260 Off!"
+            data-status="sent"
             data-sent="14553"
+            data-open="0.5198928056070913"
+            data-ctr="0.02872260015117158"
             data-opens="7566"
             data-clicks="418"
             data-rev="9290.58"
-            data-orders="25">
+            data-orders="25"
+            data-unsub="0.011131725417439703">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2091,11 +2343,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-05-16T14:45:00.757Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🎁Member-Only Weekend Bonus for You"
+            data-status="sent"
             data-sent="13682"
+            data-open="0.5296740242654583"
+            data-ctr="0.024338546996053208"
             data-opens="7247"
             data-clicks="333"
             data-rev="13404.5"
-            data-orders="28">
+            data-orders="28"
+            data-unsub="0.008551381376991667">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2115,11 +2372,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="SMS" data-sent-at="2026-05-12T15:25:00.184Z" data-in-range="1"
             data-cur="CAD"
+            data-name="MMS-Mother’s Day Countdown"
+            data-status="sent"
             data-sent="1663"
+            data-open="0"
+            data-ctr="0.2597714972940469"
             data-opens="0"
             data-clicks="432"
             data-rev="259.89"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.018641010222489478">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2139,11 +2401,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-05-11T15:30:00.464Z" data-in-range="1"
             data-cur="CAD"
+            data-name="⏰Mother’s Day Deals end in 24 hours!"
+            data-status="sent"
             data-sent="8359"
+            data-open="0.18028472305299678"
+            data-ctr="0.011723890417514057"
             data-opens="1507"
             data-clicks="98"
             data-rev="1210.97"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.00849383897595406">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2163,11 +2430,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-05-09T14:15:00.464Z" data-in-range="1"
             data-cur="CAD"
+            data-name="⌛️Final Days to to Surprise Mom!"
+            data-status="sent"
             data-sent="13762"
+            data-open="0.49767475657607907"
+            data-ctr="0.016930678680424357"
             data-opens="6849"
             data-clicks="233"
             data-rev="8465.77"
-            data-orders="17">
+            data-orders="17"
+            data-unsub="0.00901031826769365">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2187,11 +2459,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-05-02T14:35:00.905Z" data-in-range="1"
             data-cur="CAD"
+            data-name="💖Not Sure What to Get Mom? Start Here"
+            data-status="sent"
             data-sent="13406"
+            data-open="0.486796956586603"
+            data-ctr="0.019394301059227213"
             data-opens="6526"
             data-clicks="260"
             data-rev="5798.5"
-            data-orders="16">
+            data-orders="16"
+            data-unsub="0.008205281217365358">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2211,11 +2488,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="SMS" data-sent-at="2026-04-29T15:10:00.184Z" data-in-range="1"
             data-cur="CAD"
+            data-name="MMS-Mother’s Day"
+            data-status="sent"
             data-sent="1677"
+            data-open="0"
+            data-ctr="0.26356589147286824"
             data-opens="0"
             data-clicks="442"
             data-rev="1145.92"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.020274299344066785">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2235,11 +2517,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-04-25T14:45:00.464Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🎁Gift for Mom, Gift for You!"
+            data-status="sent"
             data-sent="12996"
+            data-open="0.5297014465989536"
+            data-ctr="0.02085257002154509"
             data-opens="6884"
             data-clicks="271"
             data-rev="13660.21"
-            data-orders="25">
+            data-orders="25"
+            data-unsub="0.009002770083102494">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2259,11 +2546,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-04-18T14:45:00.381Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🌱Built to Last. Made to Save"
+            data-status="sent"
             data-sent="13382"
+            data-open="0.5031385443132567"
+            data-ctr="0.019279629352862055"
             data-opens="6733"
             data-clicks="258"
             data-rev="10311.48"
-            data-orders="21">
+            data-orders="21"
+            data-unsub="0.008593633238678823">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2283,11 +2575,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-04-11T15:05:00.464Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🌍Save Today, Go Green: Up to $250 Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2307,11 +2604,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-04-04T14:45:00.757Z" data-in-range="1"
             data-cur="CAD"
+            data-name="🎁Member-Only Weekend Bonus for You"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2331,11 +2633,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="SMS" data-sent-at="2026-03-31T14:35:00.184Z" data-in-range="1"
             data-cur="CAD"
+            data-name="MMS-Spring Sale Countdown"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2355,11 +2662,16 @@
         </tr>
         <tr data-store="GT-CA" data-channel="EDM" data-sent-at="2026-03-30T14:40:00.991Z" data-in-range="1"
             data-cur="CAD"
+            data-name="⏰Final 24 Hours: Save Up to $280!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#dc2626"></span>
             <span>🇨🇦 GT-CA</span>
@@ -2379,11 +2691,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-08-08T10:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="☀️ Uncover your essential summer gear now! "
+            data-status="sent"
             data-sent="10863"
-            data-opens="5713"
+            data-open="0.5260977630488816"
+            data-ctr="0.013071895424836602"
+            data-opens="5715"
             data-clicks="142"
             data-rev="2469.14"
-            data-orders="7">
+            data-orders="7"
+            data-unsub="0.004510724477584461">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2394,8 +2711,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">10,863</td>
           <td><span class="heat h-red">1.31%</span></td>
-          <td><span class="heat h-green">52.59%</span></td>
-          <td class="num">5,713</td>
+          <td><span class="heat h-green">52.61%</span></td>
+          <td class="num">5,715</td>
           <td class="num">142</td>
           <td class="num fw6">£2,469</td>
           <td class="num">7</td>
@@ -2403,11 +2720,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-07-31T09:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🌟 Kickstart your summer upgrade now!"
+            data-status="sent"
             data-sent="11106"
+            data-open="0.5185485323248694"
+            data-ctr="0.011435260219701062"
             data-opens="5759"
             data-clicks="127"
             data-rev="1048.31"
-            data-orders="8">
+            data-orders="8"
+            data-unsub="0.004321988114532685">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2427,11 +2749,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="SMS" data-sent-at="2026-07-30T10:35:00Z" data-in-range="1"
             data-cur="GBP"
+            data-name="MMS-SummerSale"
+            data-status="sent"
             data-sent="1205"
+            data-open="0"
+            data-ctr="0.3211618257261411"
             data-opens="0"
             data-clicks="387"
             data-rev="19.99"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.008298755186721992">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2451,11 +2778,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-07-25T21:45:00.585Z" data-in-range="1"
             data-cur="GBP"
+            data-name="💪 Stop Sweating Over Summer Chores"
+            data-status="sent"
             data-sent="10380"
+            data-open="0.5708092485549133"
+            data-ctr="0.01560693641618497"
             data-opens="5925"
             data-clicks="162"
             data-rev="2148.14"
-            data-orders="9">
+            data-orders="9"
+            data-unsub="0.007707129094412331">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2475,11 +2807,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-07-18T10:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="✨Summer Essentials, Picked for You"
+            data-status="sent"
             data-sent="10659"
+            data-open="0.542827657378741"
+            data-ctr="0.012852988085186227"
             data-opens="5786"
             data-clicks="137"
             data-rev="882.6"
-            data-orders="8">
+            data-orders="8"
+            data-unsub="0.007036307345904869">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2499,11 +2836,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-07-11T09:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="☀️ Less Hassle, More Summer Fun"
+            data-status="sent"
             data-sent="10839"
+            data-open="0.5110250023064858"
+            data-ctr="0.01199372635852016"
             data-opens="5539"
             data-clicks="130"
             data-rev="1117.13"
-            data-orders="6">
+            data-orders="6"
+            data-unsub="0.00599686317926008">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2523,11 +2865,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-07-04T10:35:00.205Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🎁Member-Only Weekend Bonus for You "
+            data-status="sent"
             data-sent="11359"
+            data-open="0.5017167004137688"
+            data-ctr="0.016022537195175632"
             data-opens="5699"
             data-clicks="182"
             data-rev="1221.32"
-            data-orders="7">
+            data-orders="7"
+            data-unsub="0.00607447838718197">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2547,11 +2894,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-06-28T09:35:31.419Z" data-in-range="1"
             data-cur="GBP"
+            data-name="⏰ Final Hours | Prime Week Ends Tonight!"
+            data-status="sent"
             data-sent="6072"
+            data-open="0.17440711462450592"
+            data-ctr="0.005928853754940711"
             data-opens="1059"
             data-clicks="36"
             data-rev="1721.99"
-            data-orders="5">
+            data-orders="5"
+            data-unsub="0.005434782608695652">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2571,11 +2923,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-06-26T21:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="⏳Final 48H Frenzy Sale: Up to £100 off!"
+            data-status="sent"
             data-sent="10974"
+            data-open="0.5066520867505012"
+            data-ctr="0.014853289593584836"
             data-opens="5560"
             data-clicks="163"
             data-rev="950.1"
-            data-orders="7">
+            data-orders="7"
+            data-unsub="0.006469837798432659">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2595,11 +2952,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="SMS" data-sent-at="2026-06-25T10:19:40.382Z" data-in-range="1"
             data-cur="GBP"
+            data-name="MMS-PrimeWeek2026"
+            data-status="sent"
             data-sent="1292"
+            data-open="0"
+            data-ctr="0.3157894736842105"
             data-opens="0"
             data-clicks="408"
             data-rev="55.98"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.010061919504643963">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2619,11 +2981,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-06-22T21:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🔥Prime Week Is Live: Up to £100 OFF!"
+            data-status="sent"
             data-sent="11457"
+            data-open="0.4859910971458497"
+            data-ctr="0.015798201972593174"
             data-opens="5568"
             data-clicks="181"
             data-rev="2226.24"
-            data-orders="11">
+            data-orders="11"
+            data-unsub="0.006720782054639086">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2643,11 +3010,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-06-19T21:45:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="⏳Final 48 Hours: Up to £100 Off!"
+            data-status="sent"
             data-sent="11336"
+            data-open="0.4924135497529993"
+            data-ctr="0.014731827805222301"
             data-opens="5582"
             data-clicks="167"
             data-rev="844.46"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.007057163020465773">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2667,16 +3039,21 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-06-13T10:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🔥Father&#x27;s Day Savings Just Got Better!"
+            data-status="sent"
             data-sent="12017"
+            data-open="0.44803195473079804"
+            data-ctr="0.011566946825330781"
             data-opens="5384"
             data-clicks="139"
             data-rev="3443.06"
-            data-orders="16">
+            data-orders="16"
+            data-unsub="0.007572605475576267">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
           </div></td>
-          <td class="camp-name" title="🔥Father's Day Savings Just Got Better!">🔥Father's Day Savings Just Got Better!</td>
+          <td class="camp-name" title="🔥Father&#x27;s Day Savings Just Got Better!">🔥Father&#x27;s Day Savings Just Got Better!</td>
           <td><span class="tag tag-email">EDM</span></td>
           <td class="muted small">Jun 13, 2026</td>
           <td><span class="status-on">sent</span></td>
@@ -2691,11 +3068,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-06-06T10:35:00.585Z" data-in-range="1"
             data-cur="GBP"
+            data-name="😍Top-Rated by Dads. Loved by Homeowners."
+            data-status="sent"
             data-sent="11717"
+            data-open="0.453358368182982"
+            data-ctr="0.013826064692327387"
             data-opens="5312"
             data-clicks="162"
             data-rev="3806.93"
-            data-orders="14">
+            data-orders="14"
+            data-unsub="0.0075958009729452935">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2715,16 +3097,21 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-05-30T09:09:12.839Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🎁Father&#x27;s Day Gift Guide: Up to £100 Off!"
+            data-status="sent"
             data-sent="11156"
+            data-open="0.44621728217999285"
+            data-ctr="0.017210469702402295"
             data-opens="4978"
             data-clicks="192"
             data-rev="4178.74"
-            data-orders="13">
+            data-orders="13"
+            data-unsub="0.006902115453567587">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
           </div></td>
-          <td class="camp-name" title="🎁Father's Day Gift Guide: Up to £100 Off!">🎁Father's Day Gift Guide: Up to £100 Off!</td>
+          <td class="camp-name" title="🎁Father&#x27;s Day Gift Guide: Up to £100 Off!">🎁Father&#x27;s Day Gift Guide: Up to £100 Off!</td>
           <td><span class="tag tag-email">EDM</span></td>
           <td class="muted small">May 30, 2026</td>
           <td><span class="status-on">sent</span></td>
@@ -2739,11 +3126,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="SMS" data-sent-at="2026-05-28T11:05:00.132Z" data-in-range="1"
             data-cur="GBP"
+            data-name="MMS-Dad‘s Day 2026"
+            data-status="sent"
             data-sent="1387"
+            data-open="0"
+            data-ctr="0.2891131939437635"
             data-opens="0"
             data-clicks="401"
             data-rev="332.44"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.006488824801730353">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2763,11 +3155,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-05-23T21:05:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🔥Get Him the Best: Up to £100 Off!"
+            data-status="sent"
             data-sent="10747"
+            data-open="0.4502651902856611"
+            data-ctr="0.022890108867590957"
             data-opens="4839"
             data-clicks="246"
             data-rev="2822.62"
-            data-orders="12">
+            data-orders="12"
+            data-unsub="0.00781613473527496">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2787,11 +3184,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-05-16T10:45:00.205Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🎁Member-Only Weekend Bonus for You "
+            data-status="sent"
             data-sent="10003"
+            data-open="0.47425772268319505"
+            data-ctr="0.024992502249325203"
             data-opens="4744"
             data-clicks="250"
             data-rev="2235.78"
-            data-orders="7">
+            data-orders="7"
+            data-unsub="0.006797960611816455">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2811,11 +3213,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-05-12T10:35:34.21Z" data-in-range="1"
             data-cur="GBP"
+            data-name="⏰May Day Deals end in 17 hours!"
+            data-status="sent"
             data-sent="6418"
+            data-open="0.12402617637893425"
+            data-ctr="0.010751012776565908"
             data-opens="796"
             data-clicks="69"
             data-rev="402.66"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.0021813649111872857">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2835,11 +3242,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-05-09T09:56:18.746Z" data-in-range="1"
             data-cur="GBP"
+            data-name="⏳ May Bank Holiday Sale Ending Soon!"
+            data-status="sent"
             data-sent="10179"
+            data-open="0.45200903821593474"
+            data-ctr="0.029472443265546714"
             data-opens="4601"
             data-clicks="300"
             data-rev="1395.88"
-            data-orders="7">
+            data-orders="7"
+            data-unsub="0.003340210236761961">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2859,11 +3271,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-05-02T10:18:24.892Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🛠️For Effortless Work. For Easier Days."
+            data-status="sent"
             data-sent="9928"
+            data-open="0.45920628525382756"
+            data-ctr="0.04008863819500403"
             data-opens="4559"
             data-clicks="398"
             data-rev="1313.83"
-            data-orders="5">
+            data-orders="5"
+            data-unsub="0.004834810636583401">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2883,11 +3300,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="SMS" data-sent-at="2026-04-30T10:13:36.411Z" data-in-range="1"
             data-cur="GBP"
+            data-name="MMS-May Day"
+            data-status="sent"
             data-sent="1960"
+            data-open="0"
+            data-ctr="0.2510204081632653"
             data-opens="0"
             data-clicks="492"
             data-rev="401.45"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.009693877551020408">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2907,11 +3329,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-04-25T10:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="💪Work Less, Enjoy More This May Day!"
+            data-status="sent"
             data-sent="9439"
+            data-open="0.4557686195571565"
+            data-ctr="0.01981142070134548"
             data-opens="4302"
             data-clicks="187"
             data-rev="1631.98"
-            data-orders="8">
+            data-orders="8"
+            data-unsub="0.003602076491153724">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2931,11 +3358,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-04-18T10:35:00.838Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🌱Built to Last. Made to Save"
+            data-status="sent"
             data-sent="9822"
+            data-open="0.4426796986357157"
+            data-ctr="0.011301160659743433"
             data-opens="4348"
             data-clicks="111"
             data-rev="1156.83"
-            data-orders="5">
+            data-orders="5"
+            data-unsub="0.0036652412950519244">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2955,11 +3387,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-04-11T10:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🌍Save Today, Go Green: Up to £100 Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -2979,11 +3416,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-04-04T10:45:00.205Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🎁Member-Only Weekend Bonus for You "
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -3003,11 +3445,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-03-29T11:28:00.564Z" data-in-range="1"
             data-cur="GBP"
+            data-name="⏰Final 48 Hours to Save Up to £100!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -3027,11 +3474,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-03-27T11:28:20.013Z" data-in-range="1"
             data-cur="GBP"
+            data-name="⏳Up to £100 OFF — Ends Soon!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -3051,11 +3503,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="EDM" data-sent-at="2026-03-21T10:35:00.589Z" data-in-range="1"
             data-cur="GBP"
+            data-name="🌸Spring into Easy Living: Up to £100 Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -3075,11 +3532,16 @@
         </tr>
         <tr data-store="GT-UK" data-channel="SMS" data-sent-at="2026-03-18T10:35:00.036Z" data-in-range="1"
             data-cur="GBP"
+            data-name="MMS-Spring Sale 2026"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#7c3aed"></span>
             <span>🇬🇧 GT-UK</span>
@@ -3099,11 +3561,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="SMS" data-sent-at="2026-08-11T00:30:00.584Z" data-in-range="1"
             data-cur="AUD"
+            data-name="Early Father’s Day"
+            data-status="sent"
             data-sent="1275"
+            data-open="0"
+            data-ctr="0.4454901960784314"
             data-opens="0"
             data-clicks="568"
             data-rev="1517.75"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.01647058823529412">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3123,11 +3590,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-08-08T00:45:00Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🎁  Father’s Day Early Access Is Here"
+            data-status="sent"
             data-sent="9549"
-            data-opens="4270"
-            data-clicks="126"
+            data-open="0.4475861346737878"
+            data-ctr="0.013299821970887004"
+            data-opens="4274"
+            data-clicks="127"
             data-rev="2337.89"
-            data-orders="4">
+            data-orders="4"
+            data-unsub="0.003770028275212064">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3137,21 +3609,26 @@
           <td class="muted small">Aug 08, 2026</td>
           <td><span class="status-on">sent</span></td>
           <td class="num">9,549</td>
-          <td><span class="heat h-red">1.32%</span></td>
-          <td><span class="heat h-yellow">44.72%</span></td>
-          <td class="num">4,270</td>
-          <td class="num">126</td>
+          <td><span class="heat h-red">1.33%</span></td>
+          <td><span class="heat h-yellow">44.76%</span></td>
+          <td class="num">4,274</td>
+          <td class="num">127</td>
           <td class="num fw6">A$2,338</td>
           <td class="num">4</td>
           <td><span class="heat h-green">0.38%</span></td>
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-08-01T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🔥 Last Chance: $80 Off Your Upgrade!"
+            data-status="sent"
             data-sent="8375"
+            data-open="0.525134328358209"
+            data-ctr="0.013492537313432836"
             data-opens="4398"
             data-clicks="113"
             data-rev="9905.06"
-            data-orders="13">
+            data-orders="13"
+            data-unsub="0.004895522388059702">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3171,11 +3648,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-07-25T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🔥 Sale Prices + Up to $80 Extra Off"
+            data-status="sent"
             data-sent="8148"
+            data-open="0.46293568973981347"
+            data-ctr="0.011536573392243496"
             data-opens="3772"
             data-clicks="94"
             data-rev="1099.44"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.005645557191948944">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3195,11 +3677,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-07-18T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="⏰Prime Week Final 3 Days: Up to $320 Off!"
+            data-status="sent"
             data-sent="7886"
-            data-opens="3932"
+            data-open="0.49873193000253613"
+            data-ctr="0.014455997971088003"
+            data-opens="3933"
             data-clicks="114"
             data-rev="3666.53"
-            data-orders="6">
+            data-orders="6"
+            data-unsub="0.007227998985544002">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3210,8 +3697,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">7,886</td>
           <td><span class="heat h-red">1.45%</span></td>
-          <td><span class="heat h-green">49.86%</span></td>
-          <td class="num">3,932</td>
+          <td><span class="heat h-green">49.87%</span></td>
+          <td class="num">3,933</td>
           <td class="num">114</td>
           <td class="num fw6">A$3,667</td>
           <td class="num">6</td>
@@ -3219,11 +3706,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-07-11T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🏆Prime Week Starts with the Right Tool"
+            data-status="sent"
             data-sent="7739"
+            data-open="0.5266830339837189"
+            data-ctr="0.01201705646724383"
             data-opens="4076"
             data-clicks="93"
             data-rev="3339.13"
-            data-orders="9">
+            data-orders="9"
+            data-unsub="0.006719214368781496">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3243,11 +3735,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="SMS" data-sent-at="2026-07-09T00:45:00.512Z" data-in-range="1"
             data-cur="AUD"
+            data-name="MMS-PrimeWeek2026"
+            data-status="sent"
             data-sent="1634"
+            data-open="0"
+            data-ctr="0.37576499388004897"
             data-opens="0"
             data-clicks="614"
             data-rev="405.98"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.0073439412484700125">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3267,11 +3764,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-07-07T01:14:49.852Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🔥7-Day Frenzy Sale: Save Up to $320 Today!"
+            data-status="sent"
             data-sent="7150"
+            data-open="0.5704895104895105"
+            data-ctr="0.017902097902097902"
             data-opens="4079"
             data-clicks="128"
             data-rev="1163.68"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.006013986013986014">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3291,11 +3793,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-07-04T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🎁Member-Only Weekend Bonus for You "
+            data-status="sent"
             data-sent="7852"
+            data-open="0.5206316861946001"
+            data-ctr="0.015155374426897605"
             data-opens="4088"
             data-clicks="119"
             data-rev="2514.84"
-            data-orders="5">
+            data-orders="5"
+            data-unsub="0.006749872643912379">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3315,11 +3822,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-06-27T11:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="⏳Frenzy Sale Final Days: Up to $320 Off!"
+            data-status="sent"
             data-sent="8046"
+            data-open="0.5284613472532935"
+            data-ctr="0.015287099179716629"
             data-opens="4252"
             data-clicks="123"
             data-rev="5729.77"
-            data-orders="10">
+            data-orders="10"
+            data-unsub="0.006835694755157842">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3339,11 +3851,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-06-23T11:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="💥Prime Day Early Access! Up to $320 off!"
+            data-status="sent"
             data-sent="7873"
+            data-open="0.550743045852915"
+            data-ctr="0.017020195605233074"
             data-opens="4336"
             data-clicks="134"
             data-rev="4047.72"
-            data-orders="5">
+            data-orders="5"
+            data-unsub="0.00787501587704814">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3363,11 +3880,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-06-20T11:45:00.148Z" data-in-range="1"
             data-cur="AUD"
+            data-name="⏳Final 48 Hours: Up to $300 Off!"
+            data-status="sent"
             data-sent="8137"
+            data-open="0.49797222563598376"
+            data-ctr="0.012904018680103232"
             data-opens="4052"
             data-clicks="105"
             data-rev="3322.78"
-            data-orders="6">
+            data-orders="6"
+            data-unsub="0.00700503871205604">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3387,11 +3909,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="SMS" data-sent-at="2026-06-17T01:25:00.584Z" data-in-range="1"
             data-cur="AUD"
+            data-name="EOFY 2026"
+            data-status="sent"
             data-sent="1385"
+            data-open="0"
+            data-ctr="0.41949458483754515"
             data-opens="0"
             data-clicks="581"
             data-rev="967.66"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.008664259927797834">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3411,11 +3938,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-06-13T00:46:45.712Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🔥EOFY Deal Upgrade: Up to $300 OFF!"
+            data-status="sent"
             data-sent="9691"
+            data-open="0.46042720049530494"
+            data-ctr="0.012382623052316582"
             data-opens="4462"
             data-clicks="120"
             data-rev="3906.24"
-            data-orders="6">
+            data-orders="6"
+            data-unsub="0.007635950882261893">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3435,11 +3967,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-06-11T01:15:00.382Z" data-in-range="1"
             data-cur="AUD"
+            data-name="⚡️New Launch: Water Smarter, Move Less"
+            data-status="sent"
             data-sent="4682"
+            data-open="0.4801366937206322"
+            data-ctr="0.01196070055531824"
             data-opens="2248"
             data-clicks="56"
             data-rev="587.64"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.005339598462195643">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3459,11 +3996,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-06-11T00:45:00.12Z" data-in-range="1"
             data-cur="AUD"
+            data-name="⚡️New Launch: Water Smarter, Move Less"
+            data-status="sent"
             data-sent="5044"
+            data-open="0.4367565424266455"
+            data-ctr="0.008921490880253766"
             data-opens="2203"
             data-clicks="45"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.003965107057890563">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3483,11 +4025,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-06-06T12:23:05.904Z" data-in-range="1"
             data-cur="AUD"
+            data-name="😍Real Users, Real Reviews — EOFY Favorites"
+            data-status="sent"
             data-sent="9885"
+            data-open="0.44805260495700555"
+            data-ctr="0.011836115326251897"
             data-opens="4429"
             data-clicks="117"
             data-rev="2401.29"
-            data-orders="6">
+            data-orders="6"
+            data-unsub="0.005766312594840668">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3507,11 +4054,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-05-30T12:05:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="✨EOFY Top Picks — Save Up to $280!"
+            data-status="sent"
             data-sent="10085"
+            data-open="0.44442240951908774"
+            data-ctr="0.01308874566187407"
             data-opens="4482"
             data-clicks="132"
             data-rev="4468.17"
-            data-orders="9">
+            data-orders="9"
+            data-unsub="0.00436291522062469">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3531,11 +4083,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-05-23T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🔥Beat the EOFY Rush — Up to $280 Off!"
+            data-status="sent"
             data-sent="10327"
+            data-open="0.3955650237242181"
+            data-ctr="0.013072528323811368"
             data-opens="4085"
             data-clicks="135"
             data-rev="2520.57"
-            data-orders="7">
+            data-orders="7"
+            data-unsub="0.003873341725573739">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3555,11 +4112,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-05-16T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🎁Member-Only Weekend Bonus for You "
+            data-status="sent"
             data-sent="9005"
+            data-open="0.4443087173792338"
+            data-ctr="0.014103275957801222"
             data-opens="4001"
             data-clicks="127"
             data-rev="631.16"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.00688506385341477">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3579,11 +4141,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="SMS" data-sent-at="2026-05-12T00:35:00.584Z" data-in-range="1"
             data-cur="AUD"
+            data-name="MMS-Mother’s Day Countdown"
+            data-status="sent"
             data-sent="1428"
+            data-open="0"
+            data-ctr="0.40406162464985995"
             data-opens="0"
             data-clicks="577"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.01330532212885154">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3603,11 +4170,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-05-11T00:45:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="⏰Mother’s Day Deals end in 48 hours!"
+            data-status="sent"
             data-sent="7293"
+            data-open="0.10969422734128617"
+            data-ctr="0.011792129439188262"
             data-opens="800"
             data-clicks="86"
             data-rev="1287.84"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.005621829151240916">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3627,11 +4199,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-05-09T00:45:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="⌛️Final Days to to Surprise Mom!"
+            data-status="sent"
             data-sent="10331"
+            data-open="0.41041525505759363"
+            data-ctr="0.008421256412738361"
             data-opens="4240"
             data-clicks="87"
             data-rev="2803.45"
-            data-orders="6">
+            data-orders="6"
+            data-unsub="0.003678249927402962">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3651,11 +4228,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-05-02T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="💝Mother’s Day Gift Ideas She’ll Love"
+            data-status="sent"
             data-sent="10275"
+            data-open="0.4188807785888078"
+            data-ctr="0.04924574209245742"
             data-opens="4304"
             data-clicks="506"
             data-rev="3321.03"
-            data-orders="5">
+            data-orders="5"
+            data-unsub="0.0035036496350364962">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3675,11 +4257,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="SMS" data-sent-at="2026-04-29T01:05:00.584Z" data-in-range="1"
             data-cur="AUD"
+            data-name="MMS-Mother’s Day"
+            data-status="sent"
             data-sent="1811"
+            data-open="0"
+            data-ctr="0.3506350082827167"
             data-opens="0"
             data-clicks="635"
             data-rev="486"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.009939260077305357">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3699,11 +4286,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-04-25T00:45:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🎁Gift for Mom, Treat for You!"
+            data-status="sent"
             data-sent="10272"
+            data-open="0.4143302180685358"
+            data-ctr="0.009832554517133956"
             data-opens="4256"
             data-clicks="101"
             data-rev="5828.65"
-            data-orders="9">
+            data-orders="9"
+            data-unsub="0.00720404984423676">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3723,11 +4315,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-04-18T00:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🌱Built to Last. Made to Save"
+            data-status="sent"
             data-sent="11094"
+            data-open="0.37533802055164955"
+            data-ctr="0.010456102397692447"
             data-opens="4164"
             data-clicks="116"
             data-rev="3567.17"
-            data-orders="10">
+            data-orders="10"
+            data-unsub="0.007391382729403281">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3747,11 +4344,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-04-11T01:05:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🌍Save Today, Go Green: Up to $260 Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3771,11 +4373,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-04-03T23:35:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="🎁Member-Only Weekend Bonus for You "
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3795,11 +4402,16 @@
         </tr>
         <tr data-store="GT-AU" data-channel="EDM" data-sent-at="2026-03-30T09:10:00.124Z" data-in-range="1"
             data-cur="AUD"
+            data-name="⏰Final 24 Hours: Save Up to $280!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ea580c"></span>
             <span>🇦🇺 GT-AU</span>
@@ -3819,11 +4431,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-08-07T20:25:00.466Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🌟 Unser Sommer-Einkaufsführer"
+            data-status="sent"
             data-sent="2719"
+            data-open="0.33835969106289077"
+            data-ctr="0.01875689591761677"
             data-opens="920"
             data-clicks="51"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.0066200809121000365">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -3843,11 +4460,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-07-26T20:25:00.466Z" data-in-range="1"
             data-cur="EUR"
+            data-name="💪 Schluss mit mühsamer Sommerarbeit"
+            data-status="sent"
             data-sent="2538"
+            data-open="0.3892828999211978"
+            data-ctr="0.015760441292356184"
             data-opens="988"
             data-clicks="40"
             data-rev="627.17"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.004728132387706856">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -3867,11 +4489,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-07-11T07:25:00.466Z" data-in-range="1"
             data-cur="EUR"
+            data-name="☀️ Weniger Aufwand, mehr Sommerspaß"
+            data-status="sent"
             data-sent="2340"
+            data-open="0.38461538461538464"
+            data-ctr="0.020085470085470087"
             data-opens="900"
             data-clicks="47"
             data-rev="923.46"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.008547008547008548">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -3891,11 +4518,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-06-28T07:25:30.633Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰Letzte Stunden | Prime Week endet heute Nacht!"
+            data-status="sent"
             data-sent="1506"
+            data-open="0.1341301460823373"
+            data-ctr="0.0026560424966799467"
             data-opens="202"
             data-clicks="4"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.006640106241699867">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -3915,11 +4547,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-06-26T19:25:00.466Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏳48H Finale Sale-Frenzy: Bis zu 25% Rabatt!"
+            data-status="sent"
             data-sent="2218"
+            data-open="0.3814247069431921"
+            data-ctr="0.01848512173128945"
             data-opens="846"
             data-clicks="41"
             data-rev="935.97"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.0040577096483318306">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -3939,11 +4576,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-06-23T09:20:00.466Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🔥 Prime Week ist gestartet – 7 Tage Top-Deals!"
+            data-status="sent"
             data-sent="2187"
+            data-open="0.3850022862368541"
+            data-ctr="0.019204389574759947"
             data-opens="842"
             data-clicks="42"
             data-rev="711.97"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.007315957933241884">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -3963,11 +4605,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-06-19T19:36:58.29Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏳Letzte 48 Stunden: Bis zu 30 % Rabatt!"
+            data-status="sent"
             data-sent="2168"
+            data-open="0.382380073800738"
+            data-ctr="0.024446494464944648"
             data-opens="829"
             data-clicks="53"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.005996309963099631">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -3987,11 +4634,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-06-06T20:12:00.755Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏳Letzte 48 Stunden: Bis zu 30 % Rabatt!"
+            data-status="sent"
             data-sent="2050"
+            data-open="0.38"
+            data-ctr="0.03121951219512195"
             data-opens="779"
             data-clicks="64"
             data-rev="937.87"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.006829268292682927">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4011,11 +4663,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-05-23T20:05:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🔥 Das Beste für ihn: Bis zu 30% sparen!"
+            data-status="sent"
             data-sent="1918"
+            data-open="0.3654848800834202"
+            data-ctr="0.02346193952033368"
             data-opens="701"
             data-clicks="45"
             data-rev="609.64"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.005735140771637122">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4035,11 +4692,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-05-12T12:45:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰ Muttertags-Sale endet in 15 Stunden!"
+            data-status="sent"
             data-sent="1167"
+            data-open="0.10025706940874037"
+            data-ctr="0.01456726649528706"
             data-opens="117"
             data-clicks="17"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.002570694087403599">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4059,11 +4721,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-05-09T12:45:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰ Muttertags-Sale endet bald!"
+            data-status="sent"
             data-sent="1842"
+            data-open="0.3751357220412595"
+            data-ctr="0.041802388707926165"
             data-opens="691"
             data-clicks="77"
             data-rev="758.11"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.004343105320304018">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4083,11 +4750,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-04-25T08:45:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🎁Geschenk für Mama, Geschenk für dich!"
+            data-status="sent"
             data-sent="1781"
+            data-open="0.3756316676024705"
+            data-ctr="0.024705221785513758"
             data-opens="669"
             data-clicks="44"
             data-rev="626.84"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.008422234699606962">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4107,11 +4779,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-04-11T09:20:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🌍Starte nachhaltig: bis zu 25 % Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4131,11 +4808,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-03-30T09:46:20.065Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰Letzte 24 Stunden: Bis zu 25 % sparen"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4155,11 +4837,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-03-28T09:45:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰Bis zu 25 % Rabatt – endet bald"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4179,11 +4866,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-03-14T09:45:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🌿Frühlingsangebote – Bis zu 25 % sparen"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4203,11 +4895,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-02-28T09:45:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰Letzte 48 Stunden: Bis zu 25 % Rabatt"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4227,11 +4924,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-02-14T10:30:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🌷Frühjahrs-Sale: Bis zu 25% Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4251,11 +4953,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-01-31T09:45:00.59Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰Bis zu 25 % RABATT — endet diese Woche"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4275,11 +4982,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-01-17T09:44:00.829Z" data-in-range="1"
             data-cur="EUR"
+            data-name="Neujahrsangebot: Bis zu 25 % Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4299,11 +5011,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2026-01-03T09:27:00.815Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰Letzte 24 Stunden: Bis zu 25 % Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4323,11 +5040,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-12-13T09:45:00.194Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🎄Sorgenfreies Schenken: Bis zu 25% Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4347,11 +5069,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-11-29T09:02:18.205Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏳Jetzt oder nie: Bis zu 35 % Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4371,11 +5098,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-11-28T09:00:00.02Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏳Jetzt oder nie: Bis zu 35 % Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4395,11 +5127,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-11-10T10:15:46.798Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🔥Black Friday schon da – bis zu 35 % Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4419,11 +5156,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-11-01T09:45:00.897Z" data-in-range="1"
             data-cur="EUR"
+            data-name="👻Spuk-Rabatt! Bis zu 35 % sparen!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4443,11 +5185,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-10-18T09:00:00.225Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🎃Gruselige Deals starten – bis zu 35% Rabatt"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4467,11 +5214,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-10-07T09:00:00.38Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⏰Top-Prime-Deals — Bald vorbei!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4491,11 +5243,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-10-01T09:00:00.933Z" data-in-range="1"
             data-cur="EUR"
+            data-name="⚡️Gerade gestartet: Neuer Staubsauger"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4515,11 +5272,16 @@
         </tr>
         <tr data-store="GT-DE" data-channel="EDM" data-sent-at="2025-09-29T09:00:29.553Z" data-in-range="1"
             data-cur="EUR"
+            data-name="🔥Prime-Deals starten früher – Bis zu 35% Rabatt!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#ca8a04"></span>
             <span>🇩🇪 GT-DE</span>
@@ -4539,11 +5301,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-08-01T01:35:00.43Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🎉 夏SALE開催中！最大40%OFF"
+            data-status="sent"
             data-sent="3497"
+            data-open="0.3831855876465542"
+            data-ctr="0.007720903631684301"
             data-opens="1340"
             data-clicks="27"
             data-rev="17031"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.0042893909064912784">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4563,11 +5330,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-07-18T01:35:00.43Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏰プライムウィーク最終2日間：最大35%OFF！"
+            data-status="sent"
             data-sent="3468"
+            data-open="0.3491926182237601"
+            data-ctr="0.007785467128027681"
             data-opens="1211"
             data-clicks="27"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.0025951557093425604">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4587,11 +5359,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-06-28T00:15:25.765Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏰ ラスト数時間｜プライムウィーク終了間近！"
+            data-status="sent"
             data-sent="2251"
+            data-open="0.09951132829853399"
+            data-ctr="0.003998223011994669"
             data-opens="224"
             data-clicks="9"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.000888494002665482">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4611,11 +5388,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-06-26T12:15:00.637Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏳ラスト48時間セール：最大35%OFF！"
+            data-status="sent"
             data-sent="3409"
+            data-open="0.3813435024933998"
+            data-ctr="0.008506893517160458"
             data-opens="1300"
             data-clicks="29"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.0032267527134056907">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4635,11 +5417,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-06-23T02:28:32.252Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🔥プライムウィーク開幕 – 35%オフ"
+            data-status="sent"
             data-sent="3419"
+            data-open="0.3925124305352442"
+            data-ctr="0.010236911377595788"
             data-opens="1342"
             data-clicks="35"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.006434630008774495">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4659,11 +5446,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-06-13T01:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🔥父の日セール大幅アップ！最大 30% オフ"
+            data-status="sent"
             data-sent="3394"
+            data-open="0.36593989393046555"
+            data-ctr="0.008249852681202121"
             data-opens="1242"
             data-clicks="28"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.003241013553329405">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4683,11 +5475,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-05-23T00:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🔥お父さんにベストを：最大25%OFF！"
+            data-status="sent"
             data-sent="3299"
+            data-open="0.3967869051227645"
+            data-ctr="0.009396786905122764"
             data-opens="1309"
             data-clicks="31"
             data-rev="17999"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.005456198848135798">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4707,11 +5504,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-05-11T02:05:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏳母の日セール終了まであと48時間！"
+            data-status="sent"
             data-sent="2036"
+            data-open="0.09037328094302555"
+            data-ctr="0.0068762278978389"
             data-opens="184"
             data-clicks="14"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.0044204322200392925">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4731,11 +5533,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-05-09T01:55:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏰ 母の日セール終了間近！"
+            data-status="sent"
             data-sent="3267"
+            data-open="0.4061830425466789"
+            data-ctr="0.008876645240281604"
             data-opens="1327"
             data-clicks="29"
             data-rev="30798"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.0073461891643709825">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4755,11 +5562,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-04-25T01:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🎁ママへのギフト、あなたへのギフト！"
+            data-status="sent"
             data-sent="3186"
+            data-open="0.4067796610169492"
+            data-ctr="0.010357815442561206"
             data-opens="1296"
             data-clicks="33"
             data-rev="80998"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.007532956685499058">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4779,11 +5591,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-04-11T01:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🌍お得に、エコな暮らしを：最大25%オフ！"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4803,11 +5620,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-03-31T01:45:29.085Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏰残り24時間：最大25%OFF"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4827,11 +5649,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-03-29T01:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏳最大25%OFFまもなく終了"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4851,11 +5678,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-03-14T01:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🌿 春のセール開催！最大25%オフ"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4875,11 +5707,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-02-28T01:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏰あと48時間！最大30％OFF"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4899,11 +5736,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-02-14T01:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🌷春準備セール：最高30％OFF!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4923,11 +5765,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-01-31T01:45:00.656Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏰ 最大30％オフ — 今週で終了"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4947,11 +5794,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-01-17T01:35:00.696Z" data-in-range="1"
             data-cur="JPY"
+            data-name="✨新年限定オファー：最大30％オフ"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4971,11 +5823,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2026-01-03T01:29:00.647Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏰最終48時間：最大34%OFF！"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -4995,11 +5852,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-12-13T01:45:00.623Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🎄リスクなしのギフト：最大34%OFF！"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5019,11 +5881,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-11-29T01:15:00.558Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏳今すぐゲット！最大39%オフ！"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5043,11 +5910,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-11-28T01:00:35.088Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏳今すぐゲット！最大39%オフ！"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5067,11 +5939,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-11-18T02:15:00.217Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🔥 ブラックフライデー限定！ホースリール24%オフ"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5091,11 +5968,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-11-11T02:15:00.064Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🔥ブラックフライデー先行 - 最大39%OFF"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5115,11 +5997,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-11-01T02:00:00.129Z" data-in-range="1"
             data-cur="JPY"
+            data-name="👻おばけ割引！最大39％オフ！"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5139,11 +6026,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-10-18T02:00:00.279Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🎃怖かわいいセール開始！"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5163,11 +6055,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-10-07T02:00:00.787Z" data-in-range="1"
             data-cur="JPY"
+            data-name="⏰ 公式サイトの最大割引がまもなく終了！"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5187,11 +6084,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-09-29T02:00:20.577Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🔥プライムセール先行 – 最大39%オフ"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5211,11 +6113,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-09-27T02:00:00.778Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🔥プライムセール先行 – 最大39%オフ"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5235,11 +6142,16 @@
         </tr>
         <tr data-store="GT-JP" data-channel="EDM" data-sent-at="2025-09-15T02:00:18.591Z" data-in-range="1"
             data-cur="JPY"
+            data-name="🍂 秋の整理整頓！最大30％オフ"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#db2777"></span>
             <span>🇯🇵 GT-JP</span>
@@ -5259,11 +6171,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-08-08T14:05:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🌟 This Weekend, Try Something Different"
+            data-status="sent"
             data-sent="6567"
+            data-open="0.23618090452261306"
+            data-ctr="0.007156997106745851"
             data-opens="1551"
             data-clicks="47"
             data-rev="294.93"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.0012182122734886553">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5283,11 +6200,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-08-01T14:05:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏰ VIP Exclusive: Extra 10% Off Ends in 48 Hours"
+            data-status="sent"
             data-sent="6327"
-            data-opens="1517"
+            data-open="0.23992413466097676"
+            data-ctr="0.019124387545440175"
+            data-opens="1518"
             data-clicks="121"
             data-rev="111.15"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.002844950213371266">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5298,8 +6220,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">6,327</td>
           <td><span class="heat h-yellow">1.91%</span></td>
-          <td><span class="heat h-red">23.98%</span></td>
-          <td class="num">1,517</td>
+          <td><span class="heat h-red">23.99%</span></td>
+          <td class="num">1,518</td>
           <td class="num">121</td>
           <td class="num fw6">$111</td>
           <td class="num">1</td>
@@ -5307,11 +6229,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-07-26T14:05:00Z" data-in-range="1"
             data-cur="USD"
+            data-name="🎁48-Hour Member Exclusive: Extra 10% OFF"
+            data-status="sent"
             data-sent="6238"
-            data-opens="1608"
+            data-open="0.2579352356524527"
+            data-ctr="0.008496312920807951"
+            data-opens="1609"
             data-clicks="53"
             data-rev="842.14"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.0020840012824623277">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5322,8 +6249,8 @@
           <td><span class="status-on">sent</span></td>
           <td class="num">6,238</td>
           <td><span class="heat h-red">0.85%</span></td>
-          <td><span class="heat h-red">25.78%</span></td>
-          <td class="num">1,608</td>
+          <td><span class="heat h-red">25.79%</span></td>
+          <td class="num">1,609</td>
           <td class="num">53</td>
           <td class="num fw6">$842</td>
           <td class="num">3</td>
@@ -5331,11 +6258,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-07-18T14:45:00.999Z" data-in-range="1"
             data-cur="USD"
+            data-name="✨One Tower. Multiple Devices. Zero Clutter."
+            data-status="sent"
             data-sent="3044"
+            data-open="0.2854796320630749"
+            data-ctr="0.03515111695137976"
             data-opens="869"
             data-clicks="107"
             data-rev="659.29"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.0019710906701708277">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5355,11 +6287,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-07-18T14:12:00.999Z" data-in-range="1"
             data-cur="USD"
+            data-name="✨One Tower. Multiple Devices. Zero Clutter."
+            data-status="sent"
             data-sent="2959"
+            data-open="0.2152754308888138"
+            data-ctr="0.021290976681311254"
             data-opens="637"
             data-clicks="63"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.001013856032443393">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5379,11 +6316,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-07-11T14:27:00.786Z" data-in-range="1"
             data-cur="USD"
+            data-name="⚡New Smart Charging Hub: 15% OFF"
+            data-status="sent"
             data-sent="3211"
+            data-open="0.2282777950794145"
+            data-ctr="0.01775147928994083"
             data-opens="733"
             data-clicks="57"
             data-rev="130.9"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.0012457178449081284">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5403,11 +6345,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-07-11T02:05:00.345Z" data-in-range="1"
             data-cur="USD"
+            data-name="⚡Your Charging Setup Just Got Smarter!"
+            data-status="sent"
             data-sent="3057"
+            data-open="0.31959437356885834"
+            data-ctr="0.005888125613346418"
             data-opens="977"
             data-clicks="18"
             data-rev="58.24"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.0026169447170428526">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5427,11 +6374,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-07-04T14:05:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🗽Member-Only 4th of July Bonus for You!"
+            data-status="sent"
             data-sent="5870"
+            data-open="0.25792163543441227"
+            data-ctr="0.005621805792163544"
             data-opens="1514"
             data-clicks="33"
             data-rev="197.19"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.0015332197614991482">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5451,11 +6403,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-06-28T14:05:26.222Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏰ Final Hours | Prime Week Ends Tonight!"
+            data-status="sent"
             data-sent="4380"
+            data-open="0.054337899543379"
+            data-ctr="0.001141552511415525"
             data-opens="238"
             data-clicks="5"
             data-rev="0"
-            data-orders="0">
+            data-orders="0"
+            data-unsub="0.001141552511415525">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5475,11 +6432,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-06-27T02:05:00.484Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏳Final 48H Frenzy Sale: Extra Savings + Free Gift!"
+            data-status="sent"
             data-sent="5734"
+            data-open="0.25497035228461806"
+            data-ctr="0.00749912800837112"
             data-opens="1462"
             data-clicks="43"
             data-rev="972.23"
-            data-orders="4">
+            data-orders="4"
+            data-unsub="0.0033135681897453785">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5499,11 +6461,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-06-22T15:26:52.491Z" data-in-range="1"
             data-cur="USD"
+            data-name="🔥Prime Week Is Live: Up to 15% OFF!"
+            data-status="sent"
             data-sent="5662"
+            data-open="0.2567997174143412"
+            data-ctr="0.006534793359237019"
             data-opens="1454"
             data-clicks="37"
             data-rev="618.56"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.001942776404097492">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5523,11 +6490,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-06-20T02:15:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏳Only 48 Hours Left in Father’s Day Sale"
+            data-status="sent"
             data-sent="5610"
+            data-open="0.26024955436720143"
+            data-ctr="0.00873440285204991"
             data-opens="1460"
             data-clicks="49"
             data-rev="636.58"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.0017825311942959">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5547,11 +6519,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-06-13T15:05:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🔥 Father’s Day Deals Just Got Better!"
+            data-status="sent"
             data-sent="5467"
+            data-open="0.2612035851472471"
+            data-ctr="0.004938723248582404"
             data-opens="1428"
             data-clicks="27"
             data-rev="395.04"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.002560819462227913">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5571,11 +6548,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-06-06T14:52:00.058Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏳Last 48 Hours: Extra Savings + Free Gift!"
+            data-status="sent"
             data-sent="5383"
+            data-open="0.2598922533903028"
+            data-ctr="0.005015790451421141"
             data-opens="1399"
             data-clicks="27"
             data-rev="179.08"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.002229240200631618">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5595,16 +6577,21 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-05-31T03:05:00.269Z" data-in-range="1"
             data-cur="USD"
+            data-name="🎁Father&#x27;s Day Gift Guide: Up to $30 Off!"
+            data-status="sent"
             data-sent="5280"
+            data-open="0.225"
+            data-ctr="0.005871212121212121"
             data-opens="1188"
             data-clicks="31"
             data-rev="758.14"
-            data-orders="4">
+            data-orders="4"
+            data-unsub="0.0011363636363636363">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
           </div></td>
-          <td class="camp-name" title="🎁Father's Day Gift Guide: Up to $30 Off!">🎁Father's Day Gift Guide: Up to $30 Off!</td>
+          <td class="camp-name" title="🎁Father&#x27;s Day Gift Guide: Up to $30 Off!">🎁Father&#x27;s Day Gift Guide: Up to $30 Off!</td>
           <td><span class="tag tag-email">EDM</span></td>
           <td class="muted small">May 31, 2026</td>
           <td><span class="status-on">sent</span></td>
@@ -5619,11 +6606,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-05-24T02:05:00.269Z" data-in-range="1"
             data-cur="USD"
+            data-name="🔥Get Him the Best: Up to $30 Off!"
+            data-status="sent"
             data-sent="5314"
+            data-open="0.2203613097478359"
+            data-ctr="0.0077154685735792245"
             data-opens="1171"
             data-clicks="41"
             data-rev="605.5"
-            data-orders="4">
+            data-orders="4"
+            data-unsub="0.0015054572826496049">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5643,11 +6635,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-05-16T15:15:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🎁Member-Only Weekend Bonus for You"
+            data-status="sent"
             data-sent="5097"
+            data-open="0.2707474985285462"
+            data-ctr="0.01079066117323916"
             data-opens="1380"
             data-clicks="55"
             data-rev="665.64"
-            data-orders="8">
+            data-orders="8"
+            data-unsub="0.00274671375318815">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5667,11 +6664,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-05-10T14:15:00.269Z" data-in-range="1"
             data-cur="USD"
+            data-name="🌷A Sweet Treat for Mom — Ends Soon!"
+            data-status="sent"
             data-sent="5172"
+            data-open="0.2708816705336427"
+            data-ctr="0.02262180974477958"
             data-opens="1401"
             data-clicks="117"
             data-rev="258.82"
-            data-orders="2">
+            data-orders="2"
+            data-unsub="0.0030935808197989174">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5691,11 +6693,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-05-02T14:45:00.269Z" data-in-range="1"
             data-cur="USD"
+            data-name="💖Not Sure What to Get Mom? Start Here"
+            data-status="sent"
             data-sent="5104"
+            data-open="0.2733150470219436"
+            data-ctr="0.01920062695924765"
             data-opens="1395"
             data-clicks="98"
             data-rev="709.64"
-            data-orders="3">
+            data-orders="3"
+            data-unsub="0.0025470219435736676">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5715,11 +6722,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-04-25T14:45:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🏆We Won the Red Dot Award!"
+            data-status="sent"
             data-sent="5065"
+            data-open="0.28647581441263575"
+            data-ctr="0.008884501480750246"
             data-opens="1451"
             data-clicks="45"
             data-rev="563.86"
-            data-orders="7">
+            data-orders="7"
+            data-unsub="0.002764067127344521">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5739,11 +6751,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-04-18T15:05:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🎁Member-Only Bonus for You"
+            data-status="sent"
             data-sent="4837"
+            data-open="0.24540004134794294"
+            data-ctr="0.007442629729170974"
             data-opens="1187"
             data-clicks="36"
             data-rev="98.55"
-            data-orders="1">
+            data-orders="1"
+            data-unsub="0.002067397146991937">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5763,11 +6780,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-04-11T15:12:00.999Z" data-in-range="1"
             data-cur="USD"
+            data-name="🔥A Whole New Way to Charge: Up to 43% Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5787,11 +6809,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-04-04T15:05:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🎁Member-Only Weekend Bonus for You"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5811,11 +6838,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-03-28T15:12:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏰Ending Soon: Up to 34% Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5835,11 +6867,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-03-25T15:07:15.353Z" data-in-range="1"
             data-cur="USD"
+            data-name="✨One Setup. All Your Charging. Up to 54% Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5859,11 +6896,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-03-21T14:35:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🔥Spring Sale Upgrade: Up to 34% Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5883,11 +6925,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-03-21T14:35:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🔥Spring Sale Upgrade: Up to 34% Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5907,11 +6954,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-03-14T14:35:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🌿Spring Into Savings – Up to 25% Off!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5931,11 +6983,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-03-07T16:05:00.826Z" data-in-range="1"
             data-cur="USD"
+            data-name="🎁Member-Only Weekend Bonus for You"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -5955,11 +7012,16 @@
         </tr>
         <tr data-store="Gitryin-US" data-channel="EDM" data-sent-at="2026-02-28T15:35:00.284Z" data-in-range="1"
             data-cur="USD"
+            data-name="⏰48 Hours Left: Save Up to 25%!"
+            data-status="sent"
             data-sent=""
+            data-open=""
+            data-ctr=""
             data-opens=""
             data-clicks=""
             data-rev=""
-            data-orders="">
+            data-orders=""
+            data-unsub="">
           <td><div class="store-cell">
             <span class="dot" style="background:#0891b2"></span>
             <span>⚡ Gitryin-US</span>
@@ -6459,14 +7521,14 @@
         </tr>
       </thead>
       <tbody id="auto-tbody">
-        <tr data-store="GT-US" data-channel="Push, EDM, SMS">
+        <tr data-store="GT-US" data-channel="SMS, EDM, Push">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
           </div></td>
           <td class="camp-name" title="Checkout Abandonment_10-15%">Checkout Abandonment_10-15%</td>
           <td><span class="tag tag-auto">Checkout Abandon</span></td>
-          <td class="muted small">Push, EDM, SMS</td>
+          <td class="muted small">SMS, EDM, Push</td>
           <td><span class="status-on">enabled</span></td>
           <td class="muted small">Started checkout</td>
         </tr>
@@ -6976,14 +8038,14 @@
           <td><span class="status-off">disabled</span></td>
           <td class="muted small">Subscribed to Marketing</td>
         </tr>
-        <tr data-store="GT-US" data-channel="Push, EDM">
+        <tr data-store="GT-US" data-channel="EDM, Push">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
           </div></td>
           <td class="camp-name" title="New-Cart Abandonment-5%/$30">New-Cart Abandonment-5%/$30</td>
           <td><span class="tag tag-auto">Cart Abandon</span></td>
-          <td class="muted small">Push, EDM</td>
+          <td class="muted small">EDM, Push</td>
           <td><span class="status-on">enabled</span></td>
           <td class="muted small">Added product to cart</td>
         </tr>
@@ -7020,14 +8082,14 @@
           <td><span class="status-on">enabled</span></td>
           <td class="muted small">Entered segment</td>
         </tr>
-        <tr data-store="GT-US" data-channel="Push, EDM, SMS">
+        <tr data-store="GT-US" data-channel="SMS, EDM, Push">
           <td><div class="store-cell">
             <span class="dot" style="background:#2563eb"></span>
             <span>🇺🇸 GT-US</span>
           </div></td>
           <td class="camp-name" title="Copy of: OS - Welcome (进阶Advanced)">Copy of: OS - Welcome (进阶Advanced)</td>
           <td><span class="tag tag-auto">Welcome</span></td>
-          <td class="muted small">Push, EDM, SMS</td>
+          <td class="muted small">SMS, EDM, Push</td>
           <td><span class="status-draft">draft</span></td>
           <td class="muted small">Subscribed to Marketing</td>
         </tr>
@@ -10460,15 +11522,15 @@
   <!-- FOOTER -->
   <div class="footer">
     <div>Omnisend Multi-Store · 7 brands · Giraffe Tools &amp; Gitryin US</div>
-    <div>Auto-refreshes every Monday 08:00 UTC · 2026-08-12 06:01 UTC</div>
+    <div>Auto-refreshes every Monday 08:00 UTC · 2026-08-12 06:59 UTC</div>
   </div>
 
 </div><!-- /page -->
 
 <script>
 const STORE_IDS  = ['GT-US', 'GT-CA', 'GT-UK', 'GT-AU', 'GT-DE', 'GT-JP', 'Gitryin-US'];
-const DATA_30    = {"GT-US": {"sent": 1054265, "openRate": 0.5648898894338171, "clickRate": 0.0130631292891256, "revenue": 367018.58, "totalRev": 1708589.9, "orders": 1167, "unsubRate": 0.004842236060193595, "subEmail": 11289, "unsubEmail": 6139, "netGrowth": 5150, "subSms": 0, "campSent": 975381, "campOpen": 0.5695697606968338, "campRev": 131911.29, "campOrders": 413, "autoSent": 78884, "autoOpen": 0.507708888043616, "autoRev": 235107.29, "autoOrders": 754, "currency": "USD", "color": "#2563eb"}, "GT-CA": {"sent": 71914, "openRate": 0.5383304208324978, "clickRate": 0.02807520093444948, "revenue": 94001.95, "totalRev": 418711.75, "orders": 244, "unsubRate": 0.009817281753205218, "subEmail": 1968, "unsubEmail": 733, "netGrowth": 1235, "subSms": 7, "campSent": 62913, "campOpen": 0.5548320260470623, "campRev": 22262.01, "campOrders": 54, "autoSent": 9001, "autoOpen": 0.42684146205977114, "autoRev": 71739.94, "autoOrders": 190, "currency": "CAD", "color": "#dc2626"}, "GT-UK": {"sent": 48074, "openRate": 0.5339990185410399, "clickRate": 0.025190331572159587, "revenue": 27886.73, "totalRev": 120880.32, "orders": 129, "unsubRate": 0.006677205974123227, "subEmail": 1557, "unsubEmail": 357, "netGrowth": 1200, "subSms": 7, "campSent": 44213, "campOpen": 0.5390392485119048, "campRev": 6568.18, "campOrders": 33, "autoSent": 3861, "autoOpen": 0.47785547785547783, "autoRev": 21318.55, "autoOrders": 96, "currency": "GBP", "color": "#7c3aed"}, "GT-AU": {"sent": 38329, "openRate": 0.4619474280779403, "clickRate": 0.030316470557541286, "revenue": 44665, "totalRev": 240175.99, "orders": 61, "unsubRate": 0.005896318714289441, "subEmail": 713, "unsubEmail": 245, "netGrowth": 468, "subSms": 4, "campSent": 35233, "campOpen": 0.48212497791389364, "campRev": 18526.67, "campOrders": 28, "autoSent": 3096, "autoOpen": 0.2406330749354005, "autoRev": 26138.33, "autoOrders": 33, "currency": "AUD", "color": "#ea580c"}, "GT-DE": {"sent": 5795, "openRate": 0.37894736842105264, "clickRate": 0.02899050905953408, "revenue": 12766.4, "totalRev": 66436.75, "orders": 42, "unsubRate": 0.005694564279551337, "subEmail": 422, "unsubEmail": 53, "netGrowth": 369, "subSms": 0, "campSent": 5257, "campOpen": 0.36294464523492487, "campRev": 627.17, "campOrders": 2, "autoSent": 538, "autoOpen": 0.5353159851301115, "autoRev": 12139.23, "autoOrders": 40, "currency": "EUR", "color": "#ca8a04"}, "GT-JP": {"sent": 7155, "openRate": 0.3656184486373166, "clickRate": 0.00936408106219427, "revenue": 156210, "totalRev": 2181721, "orders": 9, "unsubRate": 0.00363382250174703, "subEmail": 143, "unsubEmail": 36, "netGrowth": 107, "subSms": 0, "campSent": 6965, "campOpen": 0.36625987078248384, "campRev": 17031, "campOrders": 1, "autoSent": 190, "autoOpen": 0.34210526315789475, "autoRev": 139179, "autoOrders": 8, "currency": "JPY", "color": "#db2777"}, "Gitryin-US": {"sent": 25579, "openRate": 0.24922788224715586, "clickRate": 0.015989679033582234, "revenue": 2750.57, "totalRev": 57799.88, "orders": 13, "unsubRate": 0.0021111067672700263, "subEmail": 457, "unsubEmail": 91, "netGrowth": 366, "subSms": 0, "campSent": 25135, "campOpen": 0.24595185995623634, "campRev": 1907.51, "campOrders": 8, "autoSent": 444, "autoOpen": 0.4346846846846847, "autoRev": 843.06, "autoOrders": 5, "currency": "USD", "color": "#0891b2"}};
-const DATA_7     = {"GT-US": {"sent": 269310, "openRate": 0.5466279492911305, "clickRate": 0.008139319000408452, "revenue": 72749.59, "totalRev": 433082.56, "orders": 231, "unsubRate": 0.003991682447736809, "subEmail": 2182, "unsubEmail": 1203, "netGrowth": 979, "subSms": 0, "campSent": 251586, "campOpen": 0.5496689004952581, "campRev": 24227.97, "campOrders": 72, "autoSent": 17724, "autoOpen": 0.5034432151727252, "autoRev": 48521.62, "autoOrders": 159, "currency": "USD", "color": "#2563eb"}, "GT-CA": {"sent": 17466, "openRate": 0.533092866139929, "clickRate": 0.019580900034352457, "revenue": 25148.77, "totalRev": 98949.3, "orders": 52, "unsubRate": 0.008874384518493072, "subEmail": 649, "unsubEmail": 219, "netGrowth": 430, "subSms": 1, "campSent": 14907, "campOpen": 0.5530287784262427, "campRev": 6174.01, "campOrders": 10, "autoSent": 2559, "autoOpen": 0.4169597499023056, "autoRev": 18974.76, "autoOrders": 42, "currency": "CAD", "color": "#dc2626"}, "GT-UK": {"sent": 11612, "openRate": 0.5204099207716155, "clickRate": 0.016104030313468826, "revenue": 6372.24, "totalRev": 26973.47, "orders": 23, "unsubRate": 0.005080950740613159, "subEmail": 322, "unsubEmail": 77, "netGrowth": 245, "subSms": 0, "campSent": 10863, "campOpen": 0.5259136518457148, "campRev": 2469.14, "campOrders": 7, "autoSent": 749, "autoOpen": 0.44058744993324434, "autoRev": 3903.1, "autoOrders": 16, "currency": "GBP", "color": "#7c3aed"}, "GT-AU": {"sent": 11456, "openRate": 0.43807091641292606, "clickRate": 0.06424581005586592, "revenue": 13924.23, "totalRev": 66826.78, "orders": 17, "unsubRate": 0.005761173184357542, "subEmail": 199, "unsubEmail": 76, "netGrowth": 123, "subSms": 0, "campSent": 10824, "campOpen": 0.44716724264320873, "campRev": 3855.64, "campOrders": 6, "autoSent": 632, "autoOpen": 0.30063291139240506, "autoRev": 10068.59, "autoOrders": 11, "currency": "AUD", "color": "#ea580c"}, "GT-DE": {"sent": 2899, "openRate": 0.34736115902035186, "clickRate": 0.026905829596412557, "revenue": 3331.21, "totalRev": 24210.78, "orders": 11, "unsubRate": 0.006553984132459468, "subEmail": 128, "unsubEmail": 23, "netGrowth": 105, "subSms": 0, "campSent": 2719, "campOpen": 0.33835969106289077, "campRev": 0, "campOrders": 0, "autoSent": 180, "autoOpen": 0.48333333333333334, "autoRev": 3331.21, "autoOrders": 11, "currency": "EUR", "color": "#ca8a04"}, "GT-JP": {"sent": 59, "openRate": 0.3559322033898305, "clickRate": 0.05084745762711865, "revenue": 34199, "totalRev": 514454, "orders": 2, "unsubRate": 0, "subEmail": 43, "unsubEmail": 2, "netGrowth": 41, "subSms": 0, "campSent": null, "campOpen": null, "campRev": null, "campOrders": null, "autoSent": 59, "autoOpen": 0.3559322033898305, "autoRev": 34199, "autoOrders": 2, "currency": "JPY", "color": "#db2777"}, "Gitryin-US": {"sent": 6671, "openRate": 0.2398441013341328, "clickRate": 0.007645030730025483, "revenue": 556.47, "totalRev": 17897.56, "orders": 4, "unsubRate": 0.0016489281966721632, "subEmail": 123, "unsubEmail": 24, "netGrowth": 99, "subSms": 0, "campSent": 6567, "campOpen": 0.23618090452261306, "campRev": 294.93, "campOrders": 2, "autoSent": 104, "autoOpen": 0.47115384615384615, "autoRev": 261.54, "autoOrders": 2, "currency": "USD", "color": "#0891b2"}};
+const DATA_30    = {"GT-US": {"sent": 1054324, "openRate": 0.5649452044020633, "clickRate": 0.013062398276051764, "revenue": 367018.58, "totalRev": 1708939.82, "orders": 1167, "unsubRate": 0.004842913563572488, "subEmail": 11290, "unsubEmail": 6140, "netGrowth": 5150, "subSms": 0, "campSent": 975381, "campOpen": 0.5696029669815383, "campRev": 131911.29, "campOrders": 413, "autoSent": 78943, "autoOpen": 0.5080768792205653, "autoRev": 235107.29, "autoOrders": 754, "currency": "USD", "color": "#2563eb"}, "GT-CA": {"sent": 71916, "openRate": 0.5384152629769681, "clickRate": 0.028074420156849657, "revenue": 94001.95, "totalRev": 418711.75, "orders": 244, "unsubRate": 0.009817008732410034, "subEmail": 1968, "unsubEmail": 733, "netGrowth": 1235, "subSms": 7, "campSent": 62913, "campOpen": 0.5548649137519939, "campRev": 22262.01, "campOrders": 54, "autoSent": 9003, "autoOpen": 0.4273020104409641, "autoRev": 71739.94, "autoOrders": 190, "currency": "CAD", "color": "#dc2626"}, "GT-UK": {"sent": 48075, "openRate": 0.5340516321740986, "clickRate": 0.025189807592303694, "revenue": 27886.73, "totalRev": 120910.31, "orders": 129, "unsubRate": 0.006677067082683307, "subEmail": 1558, "unsubEmail": 357, "netGrowth": 1201, "subSms": 7, "campSent": 44213, "campOpen": 0.5390857514880952, "campRev": 6568.18, "campOrders": 33, "autoSent": 3862, "autoOpen": 0.4779906784049715, "autoRev": 21318.55, "autoOrders": 96, "currency": "GBP", "color": "#7c3aed"}, "GT-AU": {"sent": 38329, "openRate": 0.4621093539159065, "clickRate": 0.030342560463356726, "revenue": 44665, "totalRev": 240175.99, "orders": 61, "unsubRate": 0.005896318714289441, "subEmail": 713, "unsubEmail": 245, "netGrowth": 468, "subSms": 4, "campSent": 35233, "campOpen": 0.4822722186230049, "campRev": 18526.67, "campOrders": 28, "autoSent": 3096, "autoOpen": 0.2409560723514212, "autoRev": 26138.33, "autoOrders": 33, "currency": "AUD", "color": "#ea580c"}, "GT-DE": {"sent": 5795, "openRate": 0.3792924935289042, "clickRate": 0.02899050905953408, "revenue": 12766.4, "totalRev": 67064.61, "orders": 42, "unsubRate": 0.005694564279551337, "subEmail": 422, "unsubEmail": 53, "netGrowth": 369, "subSms": 0, "campSent": 5257, "campOpen": 0.36294464523492487, "campRev": 627.17, "campOrders": 2, "autoSent": 538, "autoOpen": 0.5390334572490706, "autoRev": 12139.23, "autoOrders": 40, "currency": "EUR", "color": "#ca8a04"}, "GT-JP": {"sent": 7158, "openRate": 0.36546521374685664, "clickRate": 0.009360156468287232, "revenue": 156210, "totalRev": 2181721, "orders": 9, "unsubRate": 0.0036322995250069852, "subEmail": 145, "unsubEmail": 36, "netGrowth": 109, "subSms": 0, "campSent": 6965, "campOpen": 0.36625987078248384, "campRev": 17031, "campOrders": 1, "autoSent": 193, "autoOpen": 0.33678756476683935, "autoRev": 139179, "autoOrders": 8, "currency": "JPY", "color": "#db2777"}, "Gitryin-US": {"sent": 25579, "openRate": 0.2493060713866844, "clickRate": 0.015989679033582234, "revenue": 2750.57, "totalRev": 57799.88, "orders": 13, "unsubRate": 0.0021111067672700263, "subEmail": 457, "unsubEmail": 91, "netGrowth": 366, "subSms": 0, "campSent": 25135, "campOpen": 0.24603143027650687, "campRev": 1907.51, "campOrders": 8, "autoSent": 444, "autoOpen": 0.4346846846846847, "autoRev": 843.06, "autoOrders": 5, "currency": "USD", "color": "#0891b2"}};
+const DATA_7     = {"GT-US": {"sent": 269369, "openRate": 0.5468015043009196, "clickRate": 0.008137536242106553, "revenue": 72749.59, "totalRev": 433432.48, "orders": 231, "unsubRate": 0.003994520527603399, "subEmail": 2183, "unsubEmail": 1204, "netGrowth": 979, "subSms": 0, "campSent": 251586, "campOpen": 0.5497483961746679, "campRev": 24227.97, "campOrders": 72, "autoSent": 17783, "autoOpen": 0.5050914205344585, "autoRev": 48521.62, "autoOrders": 159, "currency": "USD", "color": "#2563eb"}, "GT-CA": {"sent": 17468, "openRate": 0.533375314861461, "clickRate": 0.019578658117700938, "revenue": 25148.77, "totalRev": 98949.3, "orders": 52, "unsubRate": 0.008873368445156859, "subEmail": 649, "unsubEmail": 219, "netGrowth": 430, "subSms": 1, "campSent": 14907, "campOpen": 0.553095861004897, "campRev": 6174.01, "campOrders": 10, "autoSent": 2561, "autoOpen": 0.4185864896524795, "autoRev": 18974.76, "autoOrders": 42, "currency": "CAD", "color": "#dc2626"}, "GT-UK": {"sent": 11613, "openRate": 0.5206234392491174, "clickRate": 0.016102643589081204, "revenue": 6372.24, "totalRev": 27003.46, "orders": 23, "unsubRate": 0.005080513217945406, "subEmail": 323, "unsubEmail": 77, "netGrowth": 246, "subSms": 0, "campSent": 10863, "campOpen": 0.5260977630488816, "campRev": 2469.14, "campOrders": 7, "autoSent": 750, "autoOpen": 0.44133333333333336, "autoRev": 3903.1, "autoOrders": 16, "currency": "GBP", "color": "#7c3aed"}, "GT-AU": {"sent": 11456, "openRate": 0.43846380512719774, "clickRate": 0.06433310055865922, "revenue": 13924.23, "totalRev": 66826.78, "orders": 17, "unsubRate": 0.005761173184357542, "subEmail": 199, "unsubEmail": 76, "netGrowth": 123, "subSms": 0, "campSent": 10824, "campOpen": 0.4475861346737878, "campRev": 3855.64, "campOrders": 6, "autoSent": 632, "autoOpen": 0.30063291139240506, "autoRev": 10068.59, "autoOrders": 11, "currency": "AUD", "color": "#ea580c"}, "GT-DE": {"sent": 2899, "openRate": 0.34805105208692655, "clickRate": 0.026905829596412557, "revenue": 3331.21, "totalRev": 24838.64, "orders": 11, "unsubRate": 0.006553984132459468, "subEmail": 128, "unsubEmail": 23, "netGrowth": 105, "subSms": 0, "campSent": 2719, "campOpen": 0.33835969106289077, "campRev": 0, "campOrders": 0, "autoSent": 180, "autoOpen": 0.49444444444444446, "autoRev": 3331.21, "autoOrders": 11, "currency": "EUR", "color": "#ca8a04"}, "GT-JP": {"sent": 62, "openRate": 0.3387096774193548, "clickRate": 0.04838709677419355, "revenue": 34199, "totalRev": 514454, "orders": 2, "unsubRate": 0, "subEmail": 45, "unsubEmail": 2, "netGrowth": 43, "subSms": 0, "campSent": null, "campOpen": null, "campRev": null, "campOrders": null, "autoSent": 62, "autoOpen": 0.3387096774193548, "autoRev": 34199, "autoOrders": 2, "currency": "JPY", "color": "#db2777"}, "Gitryin-US": {"sent": 6671, "openRate": 0.2398441013341328, "clickRate": 0.007645030730025483, "revenue": 556.47, "totalRev": 17897.56, "orders": 4, "unsubRate": 0.0016489281966721632, "subEmail": 123, "unsubEmail": 24, "netGrowth": 99, "subSms": 0, "campSent": 6567, "campOpen": 0.23618090452261306, "campRev": 294.93, "campOrders": 2, "autoSent": 104, "autoOpen": 0.47115384615384615, "autoRev": 261.54, "autoOrders": 2, "currency": "USD", "color": "#0891b2"}};
 const DISPLAY_30 = "Jul 13 – Aug 12, 2026";
 const DISPLAY_7  = "Aug 05 – Aug 12, 2026";
 const RANGE_MIN  = "2026-05-12";
@@ -10732,6 +11794,112 @@ function filterDetailTable(tbodyId, market, channel, checkDateRange) {
   });
   const empty = tbody.querySelector('tr.empty-row');
   if (empty) empty.hidden = anyVisible;
+}
+
+// ── Export all panel data for the selected time range as CSV ──────────────────
+function csvEscape(v) {
+  v = (v === null || v === undefined) ? '' : String(v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
+function exportCSV() {
+  const market  = document.getElementById('sel-market').value;
+  const channel = document.getElementById('sel-channel').value;
+  const scope   = (market === 'all') ? STORE_IDS : [market];
+  const pct = x => (x == null || x === '') ? '' : (Number(x) * 100).toFixed(2) + '%';
+  const rangeLabel = (currentRange === '7') ? DISPLAY_7
+                   : (currentRange === '30') ? DISPLAY_30
+                   : (customFrom + ' to ' + customTo);
+  const custom = currentRange === 'custom';
+  const ovSuffix = custom ? ' (last 30 days)' : '';
+
+  const lines = [];
+  const L = arr => lines.push(arr.map(csvEscape).join(','));
+
+  L(['Omnisend Dashboard — Data Export']);
+  L(['Date range', rangeLabel]);
+  L(['Market', market === 'all' ? 'All Markets' : market]);
+  L(['Channel', channel === 'all' ? 'All Channels' : channel]);
+  L(['Generated at', new Date().toISOString()]);
+  if (custom) L(['Note', 'Campaigns reflect the selected custom range; Store Overview / Split / Growth reflect the last 30 days (per-period aggregates are only published by Omnisend for 7d / 30d).']);
+  L([]);
+
+  // Store Overview
+  L(['STORE OVERVIEW' + ovSuffix]);
+  L(['Store','Sent','Open Rate','CTR','Attributed Revenue','Total Revenue','Orders','Unsub Rate','Currency']);
+  scope.forEach(sid => { const d = rangeData(sid); if (!d) return;
+    L([sid, d.sent, pct(d.openRate), pct(d.clickRate), d.revenue, d.totalRev, d.orders, pct(d.unsubRate), d.currency]); });
+  L([]);
+
+  // Campaign vs Automation split
+  L(['CAMPAIGN vs AUTOMATION' + ovSuffix]);
+  L(['Store','Campaign Sent','Campaign Open%','Campaign Revenue','Campaign Orders','Automation Sent','Automation Open%','Automation Revenue','Automation Orders','Currency']);
+  scope.forEach(sid => { const d = rangeData(sid); if (!d) return;
+    L([sid, d.campSent, pct(d.campOpen), d.campRev, d.campOrders, d.autoSent, pct(d.autoOpen), d.autoRev, d.autoOrders, d.currency]); });
+  L([]);
+
+  // Subscriber growth
+  L(['SUBSCRIBER GROWTH' + ovSuffix]);
+  L(['Store','New Email Subs','Email Unsubs','Net Growth','New SMS Subs']);
+  scope.forEach(sid => { const d = rangeData(sid); if (!d) return;
+    L([sid, d.subEmail, d.unsubEmail, d.netGrowth, d.subSms]); });
+  L([]);
+
+  // Segments
+  L(['SEGMENTS']);
+  L(['Store','Configured Segments']);
+  document.querySelectorAll('#seg-panel .prog-row[data-store]').forEach(el => {
+    if (market !== 'all' && el.dataset.store !== market) return;
+    const c = el.querySelector('.prog-count');
+    L([el.dataset.store, c ? c.textContent.trim() : '']);
+  });
+  L([]);
+
+  // Campaigns (in-range + market + channel)
+  L(['CAMPAIGNS (' + rangeLabel + ')']);
+  L(['Store','Campaign','Channel','Send Date','Status','Sent','CTR','Open%','Opens','Clicks','Revenue','Orders','Unsub%','Currency']);
+  document.querySelectorAll('#camp-tbody tr[data-store]').forEach(r => {
+    if (r.dataset.inRange === '0') return;
+    if (market !== 'all' && r.dataset.store !== market) return;
+    if (channel !== 'all' && !((r.dataset.channel || '').includes(channel))) return;
+    const d = r.dataset;
+    L([d.store, d.name, d.channel, (d.sentAt || '').slice(0, 10), d.status,
+       d.sent, pct(d.ctr), pct(d.open), d.opens, d.clicks, d.rev, d.orders, pct(d.unsub), d.cur]);
+  });
+  L([]);
+
+  // Automations (respecting current market + channel filters)
+  L(['AUTOMATIONS']);
+  L(['Store','Automation','Category','Channels','Status','Trigger']);
+  document.querySelectorAll('#auto-tbody tr[data-store]').forEach(r => {
+    if (r.hidden) return;
+    const c = r.querySelectorAll('td');
+    if (c.length < 6) return;
+    L([r.dataset.store, c[1].textContent.trim(), c[2].textContent.trim(),
+       c[3].textContent.trim(), c[4].textContent.trim(), c[5].textContent.trim()]);
+  });
+  L([]);
+
+  // Forms (respecting current market filter)
+  L(['FORMS']);
+  L(['Store','Form','Type','Status','Views','Interaction%','Submit%','Signup%']);
+  document.querySelectorAll('#form-tbody tr[data-store]').forEach(r => {
+    if (r.hidden) return;
+    const c = r.querySelectorAll('td');
+    if (c.length < 8) return;
+    L([r.dataset.store, c[1].textContent.trim(), c[2].textContent.trim(), c[3].textContent.trim(),
+       c[4].textContent.trim(), c[5].textContent.trim(), c[6].textContent.trim(), c[7].textContent.trim()]);
+  });
+
+  const csv  = String.fromCharCode(0xFEFF) + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const tag  = (market === 'all' ? 'all-markets' : market);
+  const rl   = custom ? (customFrom + '_' + customTo) : (currentRange === '7' ? 'last7d' : 'last30d');
+  a.href = url; a.download = 'omnisend_' + tag + '_' + rl + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // init
