@@ -153,12 +153,113 @@ def fetch_campaigns(key, n=30):
         ch = c.get("channel", "email").lower()
         ch_label = {"email": "EDM", "sms": "SMS", "push": "Push"}.get(ch, ch.upper())
         items.append({
+            "id":      c.get("id", ""),
             "name":    c.get("content", {}).get("email", {}).get("subject") or c.get("name", "—"),
             "channel": ch_label,
             "status":  c.get("status", "—"),
             "sent_at": c.get("startedAt") or c.get("createdAt", ""),
         })
     return items
+
+
+def fetch_campaign_stats(key, date_from, date_to):
+    """Per-campaign performance via the analytics *reports* endpoint, grouped by
+    campaignID. This is the endpoint that accepts rate/revenue metrics (the
+    /statistics endpoint does not — it rejects openRate/clickRate/unsubscribed).
+    OPENS/CLICKS are derived as rate × sent (openRate is a unique-open rate, so
+    OPENS is unique opens — consistent with the Open% column)."""
+    out = {}
+
+    data = safe_post(f"{BASE}/api/analytics/reports", key, {"queries": [{
+        "alias": "by_camp",
+        "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
+        "dimensions": [{"name": "campaignID"}],
+        "metrics": [
+            {"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
+            {"name": "attributedRevenue"}, {"name": "attributedOrders"},
+            {"name": "unsubscribeRate"},
+        ],
+    }]})
+    reps = data.get("reports", [])
+    rows = reps[0].get("rows", []) if reps else []
+    for r in rows:
+        cid = r.get("campaignID") or r.get("campaignId")
+        if not cid:
+            continue
+        sent  = r.get("sent")
+        orate = r.get("openRate")
+        crate = r.get("clickRate")
+        out[cid] = {
+            "sent":      sent,
+            "openRate":  orate,
+            "clickRate": crate,
+            "revenue":   r.get("attributedRevenue"),
+            "orders":    r.get("attributedOrders"),
+            "unsubRate": r.get("unsubscribeRate"),
+            "opens":     round(orate * sent) if (orate is not None and sent) else None,
+            "clicks":    round(crate * sent) if (crate is not None and sent) else None,
+        }
+
+    print(f"  campaign_stats rows={len(out)}")
+    return out
+
+
+def fetch_daily(key, date_from, date_to):
+    """Daily analytics rows so custom date ranges can be aggregated client-side.
+    Rates are aggregated as sent-weighted averages; sent/revenue/orders are summed."""
+    data = safe_post(f"{BASE}/api/analytics/reports", key, {"queries": [{
+        "alias": "daily",
+        "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
+        "dimensions": [{"name": "timestamp", "granularity": "day"}],
+        "metrics": [
+            {"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
+            {"name": "attributedRevenue"}, {"name": "attributedOrders"},
+            {"name": "unsubscribeRate"}, {"name": "totalRevenue"},
+        ],
+    }]})
+    reps = data.get("reports", [])
+    rows = reps[0].get("rows", []) if reps else []
+    out = []
+    for r in rows:
+        ts = r.get("timestamp") or r.get("date") or r.get("day") or ""
+        out.append({
+            "d":         (ts[:10] if isinstance(ts, str) else ts),
+            "sent":      r.get("sent") or 0,
+            "openRate":  r.get("openRate"),
+            "clickRate": r.get("clickRate"),
+            "revenue":   r.get("attributedRevenue") or 0,
+            "orders":    r.get("attributedOrders") or 0,
+            "unsubRate": r.get("unsubscribeRate"),
+            "totalRev":  r.get("totalRevenue") or 0,
+        })
+    print(f"  daily rows={len(out)}")
+    return out
+
+
+def fetch_daily_growth(key, date_from, date_to):
+    """Per-day subscriber growth for custom-range aggregation."""
+    if date_from[:4] != date_to[:4]:
+        date_from = f"{date_to[:4]}-01-01T00:00:00Z"
+    data = safe_post(f"{BASE}/api/analytics/statistics", key, {"queries": [{
+        "alias": "growth_daily",
+        "dateRange": {"from": date_from, "to": date_to},
+        "dimensions": [{"name": "timestamp", "granularity": "day"}],
+        "metrics": [
+            {"name": "subscribedEmail"}, {"name": "unsubscribedEmail"},
+            {"name": "subscribedSms"},
+        ],
+    }]})
+    rows = ((data.get("statistics") or [{}])[0]).get("rows", [])
+    out = []
+    for r in rows:
+        ts = r.get("timestamp") or r.get("date") or r.get("day") or ""
+        out.append({
+            "d":         (ts[:10] if isinstance(ts, str) else ts),
+            "subEmail":  r.get("subscribedEmail") or 0,
+            "unsubEmail": r.get("unsubscribedEmail") or 0,
+            "subSms":    r.get("subscribedSms") or 0,
+        })
+    return out
 
 
 def fetch_automations(key):
@@ -294,12 +395,18 @@ def status_cls(st):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
     now          = datetime.now(timezone.utc)
+    DAILY_DAYS   = 92          # window for daily data / custom-range picker
+    STAT_DAYS    = 120         # window for per-campaign stats (covers recent campaigns)
     date_to      = now.strftime("%Y-%m-%dT23:59:59Z")
     date_from_30 = (now - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00Z")
     date_from_7  = (now - timedelta(days=7)).strftime("%Y-%m-%dT00:00:00Z")
+    date_from_daily = (now - timedelta(days=DAILY_DAYS)).strftime("%Y-%m-%dT00:00:00Z")
+    date_from_stat  = (now - timedelta(days=STAT_DAYS)).strftime("%Y-%m-%dT00:00:00Z")
     display_30   = f"{(now - timedelta(days=30)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
     display_7    = f"{(now - timedelta(days=7)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
     updated_at   = now.strftime("%Y-%m-%d %H:%M UTC")
+    range_min    = (now - timedelta(days=DAILY_DAYS)).strftime("%Y-%m-%d")
+    range_max    = now.strftime("%Y-%m-%d")
 
     store_data = []
 
@@ -319,6 +426,9 @@ def main():
                 "automations":  empty_auto,
                 "segments":     {"count": 0, "plus": False},
                 "campaigns":    [],
+                "camp_stats":   {},
+                "daily":        [],
+                "daily_growth": [],
                 "forms":        [],
             })
             continue
@@ -332,21 +442,31 @@ def main():
             "automations":  fetch_automations(key),
             "segments":     fetch_segments(key),
             "campaigns":    fetch_campaigns(key, 30),
+            "camp_stats":   fetch_campaign_stats(key, date_from_stat, date_to),
+            "daily":        fetch_daily(key, date_from_daily, date_to),
+            "daily_growth": fetch_daily_growth(key, date_from_daily, date_to),
             "forms":        fetch_forms(key),
         })
 
-    html = build_html(store_data, display_30, display_7, updated_at)
+    html = build_html(store_data, display_30, display_7, updated_at, range_min, range_max)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
     print("✅  index.html generated.")
 
 
 # ─── HTML builder ─────────────────────────────────────────────────────────────
-def build_html(stores, display_30, display_7, updated_at):
+def build_html(stores, display_30, display_7, updated_at, range_min="", range_max=""):
 
     import json as _json
 
     store_ids = [s["id"] for s in stores]
+
+    # Per-store daily series + subscriber growth (for custom-range aggregation)
+    daily_json = _json.dumps({s["id"]: {
+        "cur":    s["currency"],
+        "series": s.get("daily", []),
+        "growth": s.get("daily_growth", []),
+    } for s in stores}, ensure_ascii=False)
 
     # ── Market options for filter dropdown ──
     market_opts = '<option value="all">All Markets</option>\n'
@@ -514,12 +634,28 @@ def build_html(stores, display_30, display_7, updated_at):
     # ────────────────────────────────────────────────────────────────────────
     camp_rows = ""
     for s in stores:
+        cstats = s.get("camp_stats", {})
         for c in s["campaigns"]:
             ch = c["channel"]
             ch_cls = {"EDM": "tag-email", "SMS": "tag-sms", "Push": "tag-push"}.get(ch, "tag-email")
             st_cls = status_cls(c["status"])
+            st = cstats.get(c.get("id", ""), {})
+            sent   = st.get("sent")
+            orate  = st.get("openRate")
+            crate  = st.get("clickRate")
+            opens  = st.get("opens")
+            clicks = st.get("clicks")
+            rev    = st.get("revenue")
+            orders = st.get("orders")
+            unsub  = st.get("unsubRate")
             camp_rows += f"""
-        <tr data-store="{s['id']}" data-channel="{ch}" data-sent-at="{c['sent_at']}" data-in-range="1">
+        <tr data-store="{s['id']}" data-channel="{ch}" data-sent-at="{c['sent_at']}" data-in-range="1"
+            data-cur="{s['currency']}"
+            data-sent="{sent if sent is not None else ''}"
+            data-opens="{opens if opens is not None else ''}"
+            data-clicks="{clicks if clicks is not None else ''}"
+            data-rev="{rev if rev is not None else ''}"
+            data-orders="{orders if orders is not None else ''}">
           <td><div class="store-cell">
             <span class="dot" style="background:{s['color']}"></span>
             <span>{s['flag']} {s['id']}</span>
@@ -528,10 +664,18 @@ def build_html(stores, display_30, display_7, updated_at):
           <td><span class="tag {ch_cls}">{ch}</span></td>
           <td class="muted small">{fmt_date(c['sent_at'])}</td>
           <td><span class="{st_cls}">{c['status']}</span></td>
+          <td class="num">{fmt_num(sent)}</td>
+          <td><span class="heat {ctr_cls(crate)}">{fmt_pct(crate)}</span></td>
+          <td><span class="heat {open_cls(orate)}">{fmt_pct(orate)}</span></td>
+          <td class="num">{fmt_num(opens)}</td>
+          <td class="num">{fmt_num(clicks)}</td>
+          <td class="num fw6">{fmt_rev(rev, s['currency'])}</td>
+          <td class="num">{fmt_num(orders)}</td>
+          <td><span class="heat {unsub_cls(unsub)}">{fmt_pct(unsub)}</span></td>
         </tr>"""
 
     if not camp_rows:
-        camp_rows = '<tr class="empty-row"><td colspan="5">No campaign data available</td></tr>'
+        camp_rows = '<tr class="empty-row"><td colspan="13">No campaign data available</td></tr>'
 
     # ────────────────────────────────────────────────────────────────────────
     # VIEW 3 — Automation detail table
@@ -755,6 +899,17 @@ def build_html(stores, display_30, display_7, updated_at):
     padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;
   }}
 
+  /* ── KPI banner (Campaign view) ── */
+  .kpi-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }}
+  @media (max-width: 700px) {{ .kpi-grid {{ grid-template-columns: repeat(2, 1fr); }} }}
+  .kpi-card {{
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 14px 16px; border-top: 3px solid #2563eb;
+  }}
+  .kpi-label {{ font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .6px; font-weight: 700; }}
+  .kpi-val {{ font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1.3; margin-top: 2px; }}
+  .kpi-sub {{ font-size: 10px; color: #94a3b8; }}
+
   /* ── Panels ── */
   .panel {{
     background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
@@ -889,11 +1044,12 @@ def build_html(stores, display_30, display_7, updated_at):
     <div class="type-group">
       <button class="type-btn" data-range="7"  onclick="setRange('7')" id="rbtn-7">近7天</button>
       <button class="type-btn active" data-range="30" onclick="setRange('30')" id="rbtn-30">近30天</button>
+      <button class="type-btn" data-range="custom" onclick="setRange('custom')" id="rbtn-custom">自定义</button>
     </div>
     <div id="custom-range-wrap" style="display:none;align-items:center;gap:4px">
-      <input type="date" class="filter-select" id="custom-from" style="padding:4px 8px">
+      <input type="date" class="filter-select" id="custom-from" min="{range_min}" max="{range_max}" value="{range_min}" style="padding:4px 8px" onchange="applyCustomRange()">
       <span style="color:#94a3b8;font-size:12px">–</span>
-      <input type="date" class="filter-select" id="custom-to" style="padding:4px 8px">
+      <input type="date" class="filter-select" id="custom-to" min="{range_min}" max="{range_max}" value="{range_max}" style="padding:4px 8px" onchange="applyCustomRange()">
     </div>
     <span class="filter-date-badge" id="date-badge">{display_30}</span>
   </div>
@@ -1034,6 +1190,14 @@ def build_html(stores, display_30, display_7, updated_at):
           <th>Channel</th>
           <th>Send Date</th>
           <th>Status</th>
+          <th class="num">Sent</th>
+          <th>CTR</th>
+          <th>Open%</th>
+          <th class="num">Opens</th>
+          <th class="num">Clicks</th>
+          <th class="num">Revenue</th>
+          <th class="num">Orders</th>
+          <th>Unsub%</th>
         </tr>
       </thead>
       <tbody id="camp-tbody">{camp_rows}</tbody>
@@ -1126,11 +1290,16 @@ def build_html(stores, display_30, display_7, updated_at):
 const STORE_IDS  = {store_ids_js};
 const DATA_30    = {data_30_json};
 const DATA_7     = {data_7_json};
+const DAILY      = {daily_json};
 const DISPLAY_30 = "{display_30}";
 const DISPLAY_7  = "{display_7}";
+const RANGE_MIN  = "{range_min}";
+const RANGE_MAX  = "{range_max}";
 
 let currentType  = 'overview';
 let currentRange = '30';
+let customFrom   = RANGE_MIN;
+let customTo     = RANGE_MAX;
 
 // ── Formatters (mirror Python) ───────────────────────────────────────────────
 function fmtNum(n) {{
@@ -1169,27 +1338,81 @@ function growthCls(net) {{
 }}
 function heat(cls, txt) {{ return `<span class="heat ${{cls}}">${{txt}}</span>`; }}
 
+// ── Range data resolution ─────────────────────────────────────────────────────
+function rangeData(sid) {{
+  if (currentRange === '7')  return DATA_7[sid];
+  if (currentRange === '30') return DATA_30[sid];
+  return aggCustom(sid);
+}}
+
+// Aggregate a store's daily series over [customFrom, customTo].
+// sent / revenue / orders are summed; rates are sent-weighted averages.
+function aggCustom(sid) {{
+  const dd = DAILY[sid];
+  if (!dd || !dd.series || !dd.series.length) return DATA_30[sid] || null;
+  let sent = 0, rev = 0, orders = 0, totalRev = 0;
+  let owN = 0, cwN = 0, uwN = 0, wBase = 0;
+  dd.series.forEach(r => {{
+    if (r.d < customFrom || r.d > customTo) return;
+    const s = r.sent || 0;
+    sent += s; rev += r.revenue || 0; orders += r.orders || 0; totalRev += r.totalRev || 0;
+    if (r.openRate  != null) owN += r.openRate  * s;
+    if (r.clickRate != null) cwN += r.clickRate * s;
+    if (r.unsubRate != null) uwN += r.unsubRate * s;
+    wBase += s;
+  }});
+  let subEmail = 0, unsubEmail = 0, subSms = 0;
+  (dd.growth || []).forEach(g => {{
+    if (g.d < customFrom || g.d > customTo) return;
+    subEmail += g.subEmail || 0; unsubEmail += g.unsubEmail || 0; subSms += g.subSms || 0;
+  }});
+  return {{
+    currency: dd.cur, sent, revenue: rev, orders, totalRev,
+    openRate:  wBase ? owN / wBase : null,
+    clickRate: wBase ? cwN / wBase : null,
+    unsubRate: wBase ? uwN / wBase : null,
+    subEmail, unsubEmail, subSms, netGrowth: subEmail - unsubEmail,
+  }};
+}}
+
 // ── Date range switching ──────────────────────────────────────────────────────
+function updateBadge() {{
+  const badge = document.getElementById('date-badge');
+  if (!badge) return;
+  if (currentRange === '7')       badge.textContent = DISPLAY_7;
+  else if (currentRange === '30') badge.textContent = DISPLAY_30;
+  else                            badge.textContent = customFrom + ' – ' + customTo;
+}}
+
 function setRange(r) {{
   currentRange = r;
   document.querySelectorAll('[data-range]').forEach(b =>
     b.classList.toggle('active', b.dataset.range === r));
-  const badge = document.getElementById('date-badge');
-  if (badge) badge.textContent = r === '7' ? DISPLAY_7 : DISPLAY_30;
+  const wrap = document.getElementById('custom-range-wrap');
+  if (wrap) wrap.style.display = (r === 'custom') ? 'flex' : 'none';
+  updateBadge();
+  updateCampDateFilter();
   updateOverviewData();
   updateCampKpis();
-  updateCampDateFilter();
   applyFilters();
 }}
 
+function applyCustomRange() {{
+  const f = document.getElementById('custom-from').value;
+  const t = document.getElementById('custom-to').value;
+  if (f) customFrom = f;
+  if (t) customTo = t;
+  if (customFrom > customTo) {{ const tmp = customFrom; customFrom = customTo; customTo = tmp; }}
+  setRange('custom');
+}}
+
 function updateOverviewData() {{
-  const data = currentRange === '7' ? DATA_7 : DATA_30;
   STORE_IDS.forEach(sid => {{
-    const d = data[sid];
+    const d = rangeData(sid);
     if (!d) return;
     const cur = d.currency;
-    // Cards
     const el = id => document.getElementById(id);
+    // Cards
     if (el('val-sent-' + sid))   el('val-sent-' + sid).textContent   = fmtNum(d.sent);
     if (el('val-open-' + sid))   el('val-open-' + sid).textContent   = fmtPct(d.openRate);
     if (el('val-ctr-' + sid))    el('val-ctr-' + sid).textContent    = fmtPct(d.clickRate);
@@ -1203,15 +1426,17 @@ function updateOverviewData() {{
     if (el('tbl-trev-' + sid))   el('tbl-trev-' + sid).textContent   = fmtRev(d.totalRev, cur);
     if (el('tbl-orders-' + sid)) el('tbl-orders-' + sid).textContent = fmtNum(d.orders);
     if (el('tbl-unsub-' + sid))  el('tbl-unsub-' + sid).innerHTML    = heat(unsubCls(d.unsubRate), fmtPct(d.unsubRate));
-    // Split table
-    if (el('sp-csent-' + sid))   el('sp-csent-' + sid).textContent   = fmtNum(d.campSent);
-    if (el('sp-copen-' + sid))   el('sp-copen-' + sid).innerHTML     = heat(openCls(d.campOpen), fmtPct(d.campOpen));
-    if (el('sp-crev-' + sid))    el('sp-crev-' + sid).textContent    = fmtRev(d.campRev, cur);
-    if (el('sp-corders-' + sid)) el('sp-corders-' + sid).textContent = fmtNum(d.campOrders);
-    if (el('sp-asent-' + sid))   el('sp-asent-' + sid).textContent   = fmtNum(d.autoSent);
-    if (el('sp-aopen-' + sid))   el('sp-aopen-' + sid).innerHTML     = heat(openCls(d.autoOpen), fmtPct(d.autoOpen));
-    if (el('sp-arev-' + sid))    el('sp-arev-' + sid).textContent    = fmtRev(d.autoRev, cur);
-    if (el('sp-aorders-' + sid)) el('sp-aorders-' + sid).textContent = fmtNum(d.autoOrders);
+    // Split table (per-source split not available at daily granularity → show 30d)
+    const spd = (currentRange === 'custom') ? (DATA_30[sid] || {{}}) : d;
+    const spcur = spd.currency || cur;
+    if (el('sp-csent-' + sid))   el('sp-csent-' + sid).textContent   = fmtNum(spd.campSent);
+    if (el('sp-copen-' + sid))   el('sp-copen-' + sid).innerHTML     = heat(openCls(spd.campOpen), fmtPct(spd.campOpen));
+    if (el('sp-crev-' + sid))    el('sp-crev-' + sid).textContent    = fmtRev(spd.campRev, spcur);
+    if (el('sp-corders-' + sid)) el('sp-corders-' + sid).textContent = fmtNum(spd.campOrders);
+    if (el('sp-asent-' + sid))   el('sp-asent-' + sid).textContent   = fmtNum(spd.autoSent);
+    if (el('sp-aopen-' + sid))   el('sp-aopen-' + sid).innerHTML     = heat(openCls(spd.autoOpen), fmtPct(spd.autoOpen));
+    if (el('sp-arev-' + sid))    el('sp-arev-' + sid).textContent    = fmtRev(spd.autoRev, spcur);
+    if (el('sp-aorders-' + sid)) el('sp-aorders-' + sid).textContent = fmtNum(spd.autoOrders);
     // Growth table
     if (el('gr-sub-' + sid))     el('gr-sub-' + sid).textContent     = fmtNum(d.subEmail);
     if (el('gr-uns-' + sid))     el('gr-uns-' + sid).textContent     = '−' + fmtNum(d.unsubEmail);
@@ -1220,47 +1445,55 @@ function updateOverviewData() {{
   }});
 }}
 
-// ── Campaign KPI summary banner ──────────────────────────────────────────────
+// ── Campaign KPI summary banner — aggregated from the visible (in-range) rows ──
 function updateCampKpis() {{
-  const data = currentRange === '7' ? DATA_7 : DATA_30;
-  const market = currentMarket;
-  const ids = market === 'all' ? STORE_IDS : [market];
-  let totSent = 0, totRev = 0, totOrders = 0;
-  let sumOpenW = 0, sumOpenBase = 0;
-  ids.forEach(sid => {{
-    const d = data[sid];
-    if (!d) return;
-    totSent   += d.campSent   || 0;
-    totRev    += d.campRev    || 0;
-    totOrders += d.campOrders || 0;
-    if (d.campOpen != null && d.campSent) {{
-      sumOpenW    += d.campOpen * d.campSent;
-      sumOpenBase += d.campSent;
-    }}
+  const market  = document.getElementById('sel-market').value;
+  const channel = document.getElementById('sel-channel').value;
+  let sent = 0, opens = 0, clicks = 0, rev = 0, orders = 0;
+  const curSet = new Set();
+  const num = v => (v === '' || v == null) ? 0 : parseFloat(v);
+  document.querySelectorAll('#camp-tbody tr[data-store]').forEach(row => {{
+    if (row.dataset.inRange === '0') return;
+    if (market !== 'all' && row.dataset.store !== market) return;
+    if (channel !== 'all' && !((row.dataset.channel || '').includes(channel))) return;
+    sent   += num(row.dataset.sent);
+    opens  += num(row.dataset.opens);
+    clicks += num(row.dataset.clicks);
+    rev    += num(row.dataset.rev);
+    orders += num(row.dataset.orders);
+    if (row.dataset.cur && num(row.dataset.rev)) curSet.add(row.dataset.cur);
   }});
-  const avgOpen = sumOpenBase ? sumOpenW / sumOpenBase : null;
-  // Use first store's currency for revenue (mixed currencies: show USD total if all market)
-  const cur = (market !== 'all' && data[market]) ? data[market].currency : 'USD';
+  const avgOpen = sent ? opens / sent : null;
+  const mixed = curSet.size > 1;
+  const cur = curSet.size === 1 ? [...curSet][0] : 'USD';
+  const revSub = mixed ? 'Attributed · mixed currencies' : 'Attributed';
   const grid = document.getElementById('camp-kpi-grid');
   if (!grid) return;
   grid.innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">CAMPAIGN SENT</div><div class="kpi-val">${{fmtNum(totSent)}}</div></div>
-    <div class="kpi-card"><div class="kpi-label">AVG OPEN RATE</div><div class="kpi-val">${{fmtPct(avgOpen)}}</div></div>
-    <div class="kpi-card"><div class="kpi-label">CAMPAIGN REVENUE</div><div class="kpi-val">${{fmtRev(totRev, cur)}}</div><div class="kpi-sub">Attributed</div></div>
-    <div class="kpi-card"><div class="kpi-label">CAMPAIGN ORDERS</div><div class="kpi-val">${{fmtNum(totOrders)}}</div><div class="kpi-sub">Attributed</div></div>
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN SENT</div><div class="kpi-val">${{fmtNum(sent)}}</div><div class="kpi-sub">${{fmtNum(clicks)}} clicks</div></div>
+    <div class="kpi-card"><div class="kpi-label">AVG OPEN RATE</div><div class="kpi-val">${{fmtPct(avgOpen)}}</div><div class="kpi-sub">${{fmtNum(opens)}} opens</div></div>
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN REVENUE</div><div class="kpi-val">${{fmtRev(rev, cur)}}</div><div class="kpi-sub">${{revSub}}</div></div>
+    <div class="kpi-card"><div class="kpi-label">CAMPAIGN ORDERS</div><div class="kpi-val">${{fmtNum(orders)}}</div><div class="kpi-sub">Attributed</div></div>
   `;
 }}
 
-// ── Campaign date filter (7d hides rows older than 7 days) ───────────────────
+// ── Campaign date filter (marks rows in/out of the active range by send date) ──
 function updateCampDateFilter() {{
-  const cutoff = currentRange === '7' ? 7 : 30;
   const now = new Date();
+  let fromT, toT;
+  if (currentRange === 'custom') {{
+    fromT = new Date(customFrom + 'T00:00:00Z');
+    toT   = new Date(customTo   + 'T23:59:59Z');
+  }} else {{
+    const cutoff = currentRange === '7' ? 7 : 30;
+    fromT = new Date(now.getTime() - cutoff * 86400000);
+    toT   = now;
+  }}
   document.querySelectorAll('#camp-tbody tr[data-store]').forEach(row => {{
     const dateStr = row.dataset.sentAt;
-    if (!dateStr) return;
+    if (!dateStr) {{ row.dataset.inRange = '1'; return; }}
     const sent = new Date(dateStr);
-    const days = (now - sent) / 86400000;
-    row.dataset.inRange = days <= cutoff ? '1' : '0';
+    row.dataset.inRange = (sent >= fromT && sent <= toT) ? '1' : '0';
   }});
 }}
 
