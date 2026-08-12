@@ -163,27 +163,48 @@ def fetch_campaigns(key, n=30):
 
 
 def fetch_campaign_stats(key, date_from, date_to):
-    """Per-campaign performance via the analytics *reports* endpoint, grouped by
-    campaignID. This is the endpoint that accepts rate/revenue metrics (the
-    /statistics endpoint does not — it rejects openRate/clickRate/unsubscribed).
-    OPENS/CLICKS are derived as rate × sent (openRate is a unique-open rate, so
-    OPENS is unique opens — consistent with the Open% column)."""
-    out = {}
+    """Per-campaign performance via the analytics *reports* endpoint (the one that
+    accepts rate/revenue metrics; /statistics does not). Omnisend models
+    campaigns as 'marketing activities', so the per-campaign dimension is
+    marketingActivityID (parallel to the working marketingActivityType). Account
+    dialects vary, so we probe a few candidate dimension names and use whichever
+    the API accepts. OPENS/CLICKS are derived as rate × sent (openRate is a
+    unique-open rate, so OPENS is unique opens — consistent with Open%)."""
+    metrics = [
+        {"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
+        {"name": "attributedRevenue"}, {"name": "attributedOrders"},
+        {"name": "unsubscribeRate"},
+    ]
+    candidates = ["marketingActivityID", "marketingActivityId", "marketingActivity",
+                  "campaignID", "campaignId", "campaign"]
+    rows, used_dim = [], None
+    for dim in candidates:
+        try:
+            r = requests.post(f"{BASE}/api/analytics/reports", headers=_hdrs(key),
+                              json={"queries": [{
+                                  "alias": "by_camp",
+                                  "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
+                                  "dimensions": [{"name": dim}],
+                                  "metrics": metrics,
+                              }]}, timeout=25)
+        except Exception as e:
+            print(f"  camp_stats dim={dim} EXC {e}")
+            continue
+        if r.status_code != 200:
+            print(f"  camp_stats dim={dim} → {r.status_code}: {r.text[:400]}")
+            continue
+        reps = r.json().get("reports", [])
+        rr = reps[0].get("rows", []) if reps else []
+        print(f"  camp_stats dim={dim} OK rows={len(rr)}"
+              + (f" keys={list(rr[0].keys())}" if rr else ""))
+        if rr:
+            rows, used_dim = rr, dim
+            break
 
-    data = safe_post(f"{BASE}/api/analytics/reports", key, {"queries": [{
-        "alias": "by_camp",
-        "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
-        "dimensions": [{"name": "campaignID"}],
-        "metrics": [
-            {"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
-            {"name": "attributedRevenue"}, {"name": "attributedOrders"},
-            {"name": "unsubscribeRate"},
-        ],
-    }]})
-    reps = data.get("reports", [])
-    rows = reps[0].get("rows", []) if reps else []
+    out = {}
     for r in rows:
-        cid = r.get("campaignID") or r.get("campaignId")
+        cid = (r.get(used_dim) if used_dim else None) or r.get("marketingActivityID") \
+              or r.get("campaignID") or r.get("campaignId")
         if not cid:
             continue
         sent  = r.get("sent")
@@ -199,66 +220,7 @@ def fetch_campaign_stats(key, date_from, date_to):
             "opens":     round(orate * sent) if (orate is not None and sent) else None,
             "clicks":    round(crate * sent) if (crate is not None and sent) else None,
         }
-
-    print(f"  campaign_stats rows={len(out)}")
-    return out
-
-
-def fetch_daily(key, date_from, date_to):
-    """Daily analytics rows so custom date ranges can be aggregated client-side.
-    Rates are aggregated as sent-weighted averages; sent/revenue/orders are summed."""
-    data = safe_post(f"{BASE}/api/analytics/reports", key, {"queries": [{
-        "alias": "daily",
-        "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
-        "dimensions": [{"name": "timestamp", "granularity": "day"}],
-        "metrics": [
-            {"name": "sent"}, {"name": "openRate"}, {"name": "clickRate"},
-            {"name": "attributedRevenue"}, {"name": "attributedOrders"},
-            {"name": "unsubscribeRate"}, {"name": "totalRevenue"},
-        ],
-    }]})
-    reps = data.get("reports", [])
-    rows = reps[0].get("rows", []) if reps else []
-    out = []
-    for r in rows:
-        ts = r.get("timestamp") or r.get("date") or r.get("day") or ""
-        out.append({
-            "d":         (ts[:10] if isinstance(ts, str) else ts),
-            "sent":      r.get("sent") or 0,
-            "openRate":  r.get("openRate"),
-            "clickRate": r.get("clickRate"),
-            "revenue":   r.get("attributedRevenue") or 0,
-            "orders":    r.get("attributedOrders") or 0,
-            "unsubRate": r.get("unsubscribeRate"),
-            "totalRev":  r.get("totalRevenue") or 0,
-        })
-    print(f"  daily rows={len(out)}")
-    return out
-
-
-def fetch_daily_growth(key, date_from, date_to):
-    """Per-day subscriber growth for custom-range aggregation."""
-    if date_from[:4] != date_to[:4]:
-        date_from = f"{date_to[:4]}-01-01T00:00:00Z"
-    data = safe_post(f"{BASE}/api/analytics/statistics", key, {"queries": [{
-        "alias": "growth_daily",
-        "dateRange": {"from": date_from, "to": date_to},
-        "dimensions": [{"name": "timestamp", "granularity": "day"}],
-        "metrics": [
-            {"name": "subscribedEmail"}, {"name": "unsubscribedEmail"},
-            {"name": "subscribedSms"},
-        ],
-    }]})
-    rows = ((data.get("statistics") or [{}])[0]).get("rows", [])
-    out = []
-    for r in rows:
-        ts = r.get("timestamp") or r.get("date") or r.get("day") or ""
-        out.append({
-            "d":         (ts[:10] if isinstance(ts, str) else ts),
-            "subEmail":  r.get("subscribedEmail") or 0,
-            "unsubEmail": r.get("unsubscribedEmail") or 0,
-            "subSms":    r.get("subscribedSms") or 0,
-        })
+    print(f"  campaign_stats final rows={len(out)} dim={used_dim}")
     return out
 
 
@@ -395,17 +357,16 @@ def status_cls(st):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
     now          = datetime.now(timezone.utc)
-    DAILY_DAYS   = 92          # window for daily data / custom-range picker
+    PICKER_DAYS  = 92          # how far back the custom-range picker may go
     STAT_DAYS    = 120         # window for per-campaign stats (covers recent campaigns)
     date_to      = now.strftime("%Y-%m-%dT23:59:59Z")
     date_from_30 = (now - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00Z")
     date_from_7  = (now - timedelta(days=7)).strftime("%Y-%m-%dT00:00:00Z")
-    date_from_daily = (now - timedelta(days=DAILY_DAYS)).strftime("%Y-%m-%dT00:00:00Z")
     date_from_stat  = (now - timedelta(days=STAT_DAYS)).strftime("%Y-%m-%dT00:00:00Z")
     display_30   = f"{(now - timedelta(days=30)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
     display_7    = f"{(now - timedelta(days=7)).strftime('%b %d')} – {now.strftime('%b %d, %Y')}"
     updated_at   = now.strftime("%Y-%m-%d %H:%M UTC")
-    range_min    = (now - timedelta(days=DAILY_DAYS)).strftime("%Y-%m-%d")
+    range_min    = (now - timedelta(days=PICKER_DAYS)).strftime("%Y-%m-%d")
     range_max    = now.strftime("%Y-%m-%d")
 
     store_data = []
@@ -427,8 +388,6 @@ def main():
                 "segments":     {"count": 0, "plus": False},
                 "campaigns":    [],
                 "camp_stats":   {},
-                "daily":        [],
-                "daily_growth": [],
                 "forms":        [],
             })
             continue
@@ -443,8 +402,6 @@ def main():
             "segments":     fetch_segments(key),
             "campaigns":    fetch_campaigns(key, 30),
             "camp_stats":   fetch_campaign_stats(key, date_from_stat, date_to),
-            "daily":        fetch_daily(key, date_from_daily, date_to),
-            "daily_growth": fetch_daily_growth(key, date_from_daily, date_to),
             "forms":        fetch_forms(key),
         })
 
@@ -460,13 +417,6 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
     import json as _json
 
     store_ids = [s["id"] for s in stores]
-
-    # Per-store daily series + subscriber growth (for custom-range aggregation)
-    daily_json = _json.dumps({s["id"]: {
-        "cur":    s["currency"],
-        "series": s.get("daily", []),
-        "growth": s.get("daily_growth", []),
-    } for s in stores}, ensure_ascii=False)
 
     # ── Market options for filter dropdown ──
     market_opts = '<option value="all">All Markets</option>\n'
@@ -1092,7 +1042,9 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
 ═══════════════════════════════════════════════════════════════ -->
 <div id="view-overview" class="view active">
 
-  <div class="section-title"><span class="st-icon">🏪</span> Store Overview — Last 30 Days</div>
+  <div class="section-title"><span class="st-icon">🏪</span> Store Overview — Last 30 Days
+    <span id="ov-custom-note" style="display:none;font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0;font-size:11px">· 总览按近30天显示；自定义区间应用于 Campaign 视图</span>
+  </div>
   <div class="cards-grid" id="cards-grid">
 {cards_html}
   </div>
@@ -1290,7 +1242,6 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
 const STORE_IDS  = {store_ids_js};
 const DATA_30    = {data_30_json};
 const DATA_7     = {data_7_json};
-const DAILY      = {daily_json};
 const DISPLAY_30 = "{display_30}";
 const DISPLAY_7  = "{display_7}";
 const RANGE_MIN  = "{range_min}";
@@ -1339,40 +1290,13 @@ function growthCls(net) {{
 function heat(cls, txt) {{ return `<span class="heat ${{cls}}">${{txt}}</span>`; }}
 
 // ── Range data resolution ─────────────────────────────────────────────────────
+// The Overview aggregates (all-channel totals incl. automations) are only
+// available from Omnisend for the 7d / 30d windows. A custom range drives the
+// Campaign view (filtered by send date); the Overview falls back to 30d and
+// shows a note so the numbers are never mislabelled.
 function rangeData(sid) {{
-  if (currentRange === '7')  return DATA_7[sid];
-  if (currentRange === '30') return DATA_30[sid];
-  return aggCustom(sid);
-}}
-
-// Aggregate a store's daily series over [customFrom, customTo].
-// sent / revenue / orders are summed; rates are sent-weighted averages.
-function aggCustom(sid) {{
-  const dd = DAILY[sid];
-  if (!dd || !dd.series || !dd.series.length) return DATA_30[sid] || null;
-  let sent = 0, rev = 0, orders = 0, totalRev = 0;
-  let owN = 0, cwN = 0, uwN = 0, wBase = 0;
-  dd.series.forEach(r => {{
-    if (r.d < customFrom || r.d > customTo) return;
-    const s = r.sent || 0;
-    sent += s; rev += r.revenue || 0; orders += r.orders || 0; totalRev += r.totalRev || 0;
-    if (r.openRate  != null) owN += r.openRate  * s;
-    if (r.clickRate != null) cwN += r.clickRate * s;
-    if (r.unsubRate != null) uwN += r.unsubRate * s;
-    wBase += s;
-  }});
-  let subEmail = 0, unsubEmail = 0, subSms = 0;
-  (dd.growth || []).forEach(g => {{
-    if (g.d < customFrom || g.d > customTo) return;
-    subEmail += g.subEmail || 0; unsubEmail += g.unsubEmail || 0; subSms += g.subSms || 0;
-  }});
-  return {{
-    currency: dd.cur, sent, revenue: rev, orders, totalRev,
-    openRate:  wBase ? owN / wBase : null,
-    clickRate: wBase ? cwN / wBase : null,
-    unsubRate: wBase ? uwN / wBase : null,
-    subEmail, unsubEmail, subSms, netGrowth: subEmail - unsubEmail,
-  }};
+  if (currentRange === '7') return DATA_7[sid];
+  return DATA_30[sid];
 }}
 
 // ── Date range switching ──────────────────────────────────────────────────────
@@ -1382,6 +1306,8 @@ function updateBadge() {{
   if (currentRange === '7')       badge.textContent = DISPLAY_7;
   else if (currentRange === '30') badge.textContent = DISPLAY_30;
   else                            badge.textContent = customFrom + ' – ' + customTo;
+  const note = document.getElementById('ov-custom-note');
+  if (note) note.style.display = (currentRange === 'custom') ? 'inline' : 'none';
 }}
 
 function setRange(r) {{
