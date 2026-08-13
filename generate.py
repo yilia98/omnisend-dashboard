@@ -6,6 +6,7 @@ Three view modes, client-side JS switching.
 """
 
 import os
+import re
 import html
 import requests
 from datetime import datetime, timedelta, timezone
@@ -90,22 +91,13 @@ def fetch_analytics(key, date_from, date_to):
                 {"name": "totalRevenue"}, {"name": "attributedOrders"},
             ],
         },
-        {
-            "alias": "by_type",
-            "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
-            "dimensions": [{"name": "marketingActivityType"}],
-            "metrics": [
-                {"name": "sent"}, {"name": "attributedRevenue"},
-                {"name": "attributedOrders"}, {"name": "openRate"}, {"name": "clickRate"},
-            ],
-        },
     ]})
     rpts = data.get("reports", [])
     totals = rpts[0].get("rows", [{}])[0] if rpts else {}
-    by_type = {}
-    if len(rpts) > 1:
-        for row in rpts[1].get("rows", []):
-            by_type[row.get("marketingActivityType", "Unknown")] = row
+    # by_type in its own self-healing call so the richer metric set (opened /
+    # clicked / markedAsSpamRate) can't break the totals query.
+    by_rows = _report_rows(key, date_from, date_to, ["marketingActivityType"], PERF_METRICS)
+    by_type = {row.get("marketingActivityType", "Unknown"): row for row in by_rows}
     return {"totals": totals, "by_type": by_type}
 
 
@@ -225,6 +217,77 @@ def fetch_campaign_stats(key, date_from, date_to):
     return out
 
 
+# Metrics available on /reports for the campaign/automation/message dimensions
+# (confirmed by probe). placedOrderRate/failedDeliveryRate are NOT available —
+# Placed-Order% is derived as orders/sent; failed-delivery is omitted.
+PERF_METRICS = ["sent", "openRate", "clickRate", "attributedRevenue",
+                "attributedOrders", "unsubscribeRate", "markedAsSpamRate",
+                "opened", "clicked"]
+
+
+def _report_rows(key, date_from, date_to, dims, metrics):
+    """POST /reports for the given dimensions, self-healing by dropping any
+    metric the API rejects. Returns the list of rows."""
+    m = list(metrics)
+    for _ in range(len(metrics) + 1):
+        try:
+            r = requests.post(f"{BASE}/api/analytics/reports", headers=_hdrs(key),
+                              json={"queries": [{
+                                  "alias": "q",
+                                  "dateRange": {"interval": "custom", "from": date_from, "to": date_to},
+                                  "dimensions": [{"name": d} for d in dims],
+                                  "metrics": [{"name": x} for x in m],
+                              }]}, timeout=30)
+        except Exception as e:
+            print(f"  report {dims} EXC {e}")
+            return []
+        if r.status_code == 200:
+            reps = r.json().get("reports", [])
+            return reps[0].get("rows", []) if reps else []
+        bad = set()
+        try:
+            for e in r.json().get("errors", []):
+                mm = re.search(r"metrics\[(\d+)\]", e.get("field", ""))
+                if mm:
+                    bad.add(int(mm.group(1)))
+        except Exception:
+            pass
+        if not bad:
+            print(f"  report {dims} → {r.status_code}: {r.text[:200]}")
+            return []
+        m = [x for i, x in enumerate(m) if i not in bad]
+        if not m:
+            return []
+    return []
+
+
+def _norm_perf(r):
+    return {
+        "sent":      r.get("sent"),
+        "openRate":  r.get("openRate"),
+        "clickRate": r.get("clickRate"),
+        "revenue":   r.get("attributedRevenue"),
+        "orders":    r.get("attributedOrders"),
+        "unsubRate": r.get("unsubscribeRate"),
+        "spamRate":  r.get("markedAsSpamRate"),
+        "opens":     r.get("opened"),
+        "clicks":    r.get("clicked"),
+    }
+
+
+def fetch_automation_stats(key, date_from, date_to):
+    """Per-automation-flow metrics (dim=marketingActivityID) and per-message
+    metrics (dim=messageID), for the Automation table + its Email/SMS drill-down."""
+    flow_rows = _report_rows(key, date_from, date_to, ["marketingActivityID"], PERF_METRICS)
+    msg_rows  = _report_rows(key, date_from, date_to, ["messageID"], PERF_METRICS)
+    flow = {r.get("marketingActivityID"): _norm_perf(r)
+            for r in flow_rows if r.get("marketingActivityID")}
+    msg  = {r.get("messageID"): _norm_perf(r)
+            for r in msg_rows if r.get("messageID")}
+    print(f"  automation_stats flow={len(flow)} msg={len(msg)}")
+    return {"flow": flow, "msg": msg}
+
+
 def fetch_automations(key):
     data = safe_get(f"{BASE}/v5/automations", key)
     items = data.get("automations", [])
@@ -267,12 +330,17 @@ def fetch_automations(key):
             ch_msgs[ch] = ch_msgs.get(ch, 0) + 1
 
         ch_labels = [{"email": "EDM", "sms": "SMS", "push": "Push"}.get(c, c.upper()) for c in channels]
+        msg_list = [{"id": m.get("id", ""),
+                     "title": m.get("title") or "",
+                     "channel": m.get("channel", "email")} for m in msgs]
         auto_rows.append({
+            "id":       a.get("id", ""),
             "name":     a.get("name", "—"),
             "status":   st,
             "category": cat,
             "channels": ", ".join(ch_labels) if ch_labels else "—",
             "trigger":  trigger or "—",
+            "messages": msg_list,
         })
 
     return {
@@ -389,6 +457,7 @@ def main():
                 "segments":     {"count": 0, "plus": False},
                 "campaigns":    [],
                 "camp_stats":   {},
+                "auto_stats":   {"flow": {}, "msg": {}},
                 "forms":        [],
             })
             continue
@@ -403,6 +472,7 @@ def main():
             "segments":     fetch_segments(key),
             "campaigns":    fetch_campaigns(key, 30),
             "camp_stats":   fetch_campaign_stats(key, date_from_stat, date_to),
+            "auto_stats":   fetch_automation_stats(key, date_from_stat, date_to),
             "forms":        fetch_forms(key),
         })
 
@@ -456,6 +526,10 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
                 "autoOpen":    auto_t.get("openRate"),
                 "autoRev":     auto_t.get("attributedRevenue"),
                 "autoOrders":  auto_t.get("attributedOrders"),
+                "autoOpens":   auto_t.get("opened"),
+                "autoClicks":  auto_t.get("clicked"),
+                "autoUnsub":   auto_t.get("unsubscribeRate"),
+                "autoSpam":    auto_t.get("markedAsSpamRate"),
                 "currency":    s["currency"],
                 "color":       s["color"],
             }
@@ -697,23 +771,76 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
               <div class="cat-count">{enabled}/{total_c} active</div>
             </div>"""
 
+        astats  = s.get("auto_stats", {"flow": {}, "msg": {}})
+        flowmap = astats.get("flow", {})
+        msgmap  = astats.get("msg", {})
+        cur     = s["currency"]
         for row in auto.get("rows", []):
             st_cls = status_cls(row["status"])
+            aid    = row.get("id", "")
+            f      = flowmap.get(aid, {})
+            sent, orate, crate = f.get("sent"), f.get("openRate"), f.get("clickRate")
+            rev, orders        = f.get("revenue"), f.get("orders")
+            unsub, spam        = f.get("unsubRate"), f.get("spamRate")
+            po     = (orders / sent) if (orders is not None and sent) else None
+            msgs   = row.get("messages", [])
+            rid    = f"{s['id']}::{aid}"
+            nm_esc = html.escape(row["name"], quote=True)
+            tg_esc = html.escape(row["trigger"], quote=True)
+            caret  = ('<span class="auto-caret" onclick="toggleAuto(this)">▸</span>'
+                      if msgs else '<span class="auto-caret-empty"></span>')
             auto_rows_html += f"""
-        <tr data-store="{s['id']}" data-channel="{row['channels']}">
-          <td><div class="store-cell">
-            <span class="dot" style="background:{s['color']}"></span>
-            <span>{s['flag']} {s['id']}</span>
-          </div></td>
-          <td class="camp-name" title="{row['name']}">{row['name']}</td>
-          <td><span class="tag tag-auto">{row['category']}</span></td>
-          <td class="muted small">{row['channels']}</td>
+        <tr class="auto-flow" data-store="{s['id']}" data-channel="{row['channels']}" data-rid="{rid}"
+            data-name="{nm_esc}" data-status="{row['status']}" data-trigger="{tg_esc}" data-cur="{cur}"
+            data-sent="{sent if sent is not None else ''}" data-open="{orate if orate is not None else ''}"
+            data-ctr="{crate if crate is not None else ''}" data-po="{po if po is not None else ''}"
+            data-rev="{rev if rev is not None else ''}" data-orders="{orders if orders is not None else ''}"
+            data-spam="{spam if spam is not None else ''}" data-unsub="{unsub if unsub is not None else ''}">
+          <td><div class="store-cell"><span class="dot" style="background:{s['color']}"></span><span>{s['flag']} {s['id']}</span></div></td>
+          <td class="camp-name" title="{nm_esc}">{caret}{nm_esc}</td>
           <td><span class="{st_cls}">{row['status']}</span></td>
-          <td class="muted small">{row['trigger']}</td>
+          <td class="muted small">{tg_esc}</td>
+          <td class="num">{fmt_num(sent)}</td>
+          <td><span class="heat {open_cls(orate)}">{fmt_pct(orate)}</span></td>
+          <td><span class="heat {ctr_cls(crate)}">{fmt_pct(crate)}</span></td>
+          <td class="num">{fmt_pct(po)}</td>
+          <td class="num fw6">{fmt_rev(rev, cur)}</td>
+          <td class="num">{fmt_num(orders)}</td>
+          <td class="num muted">{fmt_pct(spam)}</td>
+          <td><span class="heat {unsub_cls(unsub)}">{fmt_pct(unsub)}</span></td>
+        </tr>"""
+            for i, m in enumerate(msgs, 1):
+                ms = msgmap.get(m.get("id", ""), {})
+                msent, morate, mcrate = ms.get("sent"), ms.get("openRate"), ms.get("clickRate")
+                mrev, morders         = ms.get("revenue"), ms.get("orders")
+                munsub, mspam         = ms.get("unsubRate"), ms.get("spamRate")
+                mpo   = (morders / msent) if (morders is not None and msent) else None
+                chn   = m.get("channel", "email")
+                bcls, blab = {"email": ("tag-email", "Email"), "sms": ("tag-sms", "SMS"),
+                              "push": ("tag-push", "Push")}.get(chn, ("tag-email", chn.upper()))
+                mlabel = html.escape(m.get("title") or f"Step {i}", quote=True)
+                auto_rows_html += f"""
+        <tr class="auto-msg" data-parent="{rid}" data-store="{s['id']}" data-cur="{cur}"
+            data-ch="{blab}" data-label="{mlabel}"
+            data-sent="{msent if msent is not None else ''}" data-open="{morate if morate is not None else ''}"
+            data-ctr="{mcrate if mcrate is not None else ''}" data-po="{mpo if mpo is not None else ''}"
+            data-rev="{mrev if mrev is not None else ''}" data-orders="{morders if morders is not None else ''}"
+            data-spam="{mspam if mspam is not None else ''}" data-unsub="{munsub if munsub is not None else ''}" hidden>
+          <td></td>
+          <td class="auto-msg-label"><span class="tag {bcls}">{blab}</span> {mlabel}</td>
+          <td></td><td></td>
+          <td class="num">{fmt_num(msent)}</td>
+          <td><span class="heat {open_cls(morate)}">{fmt_pct(morate)}</span></td>
+          <td><span class="heat {ctr_cls(mcrate)}">{fmt_pct(mcrate)}</span></td>
+          <td class="num">{fmt_pct(mpo)}</td>
+          <td class="num">{fmt_rev(mrev, cur)}</td>
+          <td class="num">{fmt_num(morders)}</td>
+          <td class="num muted">{fmt_pct(mspam)}</td>
+          <td><span class="heat {unsub_cls(munsub)}">{fmt_pct(munsub)}</span></td>
         </tr>"""
 
     if not auto_rows_html:
-        auto_rows_html = '<tr class="empty-row"><td colspan="6">No automation data available</td></tr>'
+        auto_rows_html = '<tr class="empty-row"><td colspan="12">No automation data available</td></tr>'
 
     # ────────────────────────────────────────────────────────────────────────
     # VIEW 4 — Form detail table
@@ -877,6 +1004,29 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
   .kpi-val {{ font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1.3; margin-top: 2px; }}
   .kpi-sub {{ font-size: 10px; color: #94a3b8; }}
 
+  /* ── Automation summary (unified panel) ── */
+  .auto-summary {{ background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }}
+  .as-row {{ display: flex; align-items: stretch; border-top: 1px solid #eef2f7; }}
+  .as-row:first-child {{ border-top: none; }}
+  .as-rowlabel {{
+    width: 150px; flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+    padding: 14px 16px; font-size: 11px; font-weight: 800; letter-spacing: .6px;
+    text-transform: uppercase; color: #475569; background: #f8fafc;
+    border-right: 1px solid #eef2f7;
+  }}
+  .as-grid {{ flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); }}
+  .as-item {{ padding: 12px 18px; border-left: 1px solid #f1f5f9; }}
+  .as-item:first-child {{ border-left: none; }}
+  .as-lab {{ font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #94a3b8; margin-bottom: 2px; }}
+  .as-val {{ font-size: 21px; font-weight: 800; color: #0f172a; line-height: 1.3; }}
+  .as-sub {{ font-size: 11px; color: #94a3b8; margin-top: 1px; }}
+  @media (max-width: 860px) {{
+    .as-row {{ flex-direction: column; }}
+    .as-rowlabel {{ width: auto; border-right: none; border-bottom: 1px solid #eef2f7; }}
+    .as-grid {{ grid-template-columns: repeat(2, 1fr); }}
+    .as-item:nth-child(2) {{ border-left: none; }}
+  }}
+
   /* ── Panels ── */
   .panel {{
     background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
@@ -977,6 +1127,18 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
 
   /* ── Camp name ellipsis ── */
   .camp-name {{ font-weight: 500; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+
+  /* ── Automation drill-down ── */
+  .auto-flow {{ cursor: default; }}
+  .auto-caret {{
+    display: inline-block; width: 14px; cursor: pointer; color: #94a3b8;
+    font-size: 10px; user-select: none; transition: color .15s;
+  }}
+  .auto-caret:hover {{ color: #2563eb; }}
+  .auto-caret-empty {{ display: inline-block; width: 14px; }}
+  tr.auto-msg td {{ background: #fbfcfe; font-size: 12px; }}
+  tr.auto-msg:hover td {{ background: #f5f8ff; }}
+  .auto-msg-label {{ color: #475569; padding-left: 18px !important; }}
 
   /* ── Legend ── */
   .legend {{ display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: 11px; color: #64748b; }}
@@ -1183,36 +1345,58 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
 ═══════════════════════════════════════════════════════════════ -->
 <div id="view-automation" class="view">
 
-  <div class="section-title"><span class="st-icon">⚡</span> Automation Health</div>
-  <div class="two-col">
-    <div class="panel">
-      <div class="panel-head">
-        <span class="panel-head-title">Active Flows by Store</span>
-        <span class="panel-head-sub">enabled / disabled / draft</span>
+  <div class="section-title"><span class="st-icon">📈</span> Automation Summary
+    <span id="au-custom-note" style="display:none;font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0;font-size:11px">· 汇总按近30天显示（自定义区间应用于下方明细）</span>
+  </div>
+  <div class="auto-summary">
+    <div class="as-row">
+      <div class="as-rowlabel">💰 Sales</div>
+      <div class="as-grid">
+        <div class="as-item"><div class="as-lab">Revenue</div><div class="as-val" id="au-revenue">—</div><div class="as-sub">Attributed</div></div>
+        <div class="as-item"><div class="as-lab">Placed orders</div><div class="as-val" id="au-orders">—</div><div class="as-sub">Attributed</div></div>
+        <div class="as-item"><div class="as-lab">Revenue / order</div><div class="as-val" id="au-rpo">—</div></div>
+        <div class="as-item"><div class="as-lab">Revenue / message</div><div class="as-val" id="au-rpm">—</div></div>
       </div>
-{auto_progress}
-{ch_stats_html}
     </div>
-    <div class="panel">
-      <div class="panel-head">
-        <span class="panel-head-title" id="cat-panel-title">Flow Categories — GT-US</span>
-        <span class="panel-head-sub">active / total by trigger</span>
+    <div class="as-row">
+      <div class="as-rowlabel">📨 Engagement</div>
+      <div class="as-grid">
+        <div class="as-item"><div class="as-lab">Messages sent</div><div class="as-val" id="au-sent">—</div></div>
+        <div class="as-item"><div class="as-lab">Open rate</div><div class="as-val" id="au-open">—</div><div class="as-sub" id="au-open-sub"></div></div>
+        <div class="as-item"><div class="as-lab">Click rate</div><div class="as-val" id="au-click">—</div><div class="as-sub" id="au-click-sub"></div></div>
+        <div class="as-item"><div class="as-lab">Placed order rate</div><div class="as-val" id="au-por">—</div><div class="as-sub" id="au-por-sub"></div></div>
       </div>
-{cat_rows}
+    </div>
+    <div class="as-row">
+      <div class="as-rowlabel">📬 Deliverability</div>
+      <div class="as-grid">
+        <div class="as-item"><div class="as-lab">Messages sent</div><div class="as-val" id="au-sent2">—</div></div>
+        <div class="as-item"><div class="as-lab">Marked as spam</div><div class="as-val" id="au-spam">—</div></div>
+        <div class="as-item"><div class="as-lab">Unsubscribe rate</div><div class="as-val" id="au-unsub">—</div></div>
+        <div class="as-item"><div class="as-lab">Failed delivery</div><div class="as-val" style="color:#cbd5e1;font-size:16px">N/A</div><div class="as-sub">API 未提供</div></div>
+      </div>
     </div>
   </div>
 
-  <div class="section-title"><span class="st-icon">⚡</span> All Automations</div>
+  <div class="section-title"><span class="st-icon">⚡</span> Workflow Performance
+    <span style="font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0;font-size:11px">— 点击流程名称展开查看每条 Email / SMS 消息</span>
+  </div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>Market</th>
-          <th>Automation Name</th>
-          <th>Category</th>
-          <th>Channels</th>
+          <th>Automation / Message</th>
           <th>Status</th>
           <th>Trigger</th>
+          <th class="num">Sent</th>
+          <th>Open%</th>
+          <th>Click%</th>
+          <th class="num">Placed Order%</th>
+          <th class="num">Revenue</th>
+          <th class="num">Orders</th>
+          <th>Spam%</th>
+          <th>Unsub%</th>
         </tr>
       </thead>
       <tbody id="auto-tbody">{auto_rows_html}</tbody>
@@ -1287,6 +1471,12 @@ function fmtRev(n, cur) {{
   const val = cur === 'JPY' ? Math.round(n).toLocaleString() : Math.round(n).toLocaleString();
   return sym + val;
 }}
+function fmtMoney2(n, cur) {{  // money with 2 decimals (per-order / per-message)
+  if (n == null) return '—';
+  const syms = {{USD:'$',CAD:'CA$',GBP:'£',AUD:'A$',EUR:'€',JPY:'¥'}};
+  const sym = syms[cur] || cur + ' ';
+  return sym + Number(n).toLocaleString(undefined, {{minimumFractionDigits: 2, maximumFractionDigits: 2}});
+}}
 function openCls(r) {{
   if (r == null) return 'h-gray';
   const p = r * 100;
@@ -1327,6 +1517,46 @@ function updateBadge() {{
   else                            badge.textContent = customFrom + ' – ' + customTo;
   const note = document.getElementById('ov-custom-note');
   if (note) note.style.display = (currentRange === 'custom') ? 'inline' : 'none';
+  const anote = document.getElementById('au-custom-note');
+  if (anote) anote.style.display = (currentRange === 'custom') ? 'inline' : 'none';
+}}
+
+// ── Automation summary panels (Sales / Engagement / Deliverability) ───────────
+function updateAutoPanels() {{
+  const data   = currentRange === '7' ? DATA_7 : DATA_30;  // custom → 30d
+  const market = document.getElementById('sel-market').value;
+  const ids    = market === 'all' ? STORE_IDS : [market];
+  let sent = 0, rev = 0, orders = 0, opens = 0, clicks = 0, spamN = 0, unsubN = 0;
+  const curSet = new Set();
+  ids.forEach(sid => {{
+    const d = data[sid]; if (!d) return;
+    sent   += d.autoSent   || 0;
+    rev    += d.autoRev    || 0;
+    orders += d.autoOrders || 0;
+    opens  += d.autoOpens  || 0;
+    clicks += d.autoClicks || 0;
+    if (d.autoSpam  != null && d.autoSent) spamN  += d.autoSpam  * d.autoSent;
+    if (d.autoUnsub != null && d.autoSent) unsubN += d.autoUnsub * d.autoSent;
+    if (d.autoRev) curSet.add(d.currency);
+  }});
+  const cur    = curSet.size === 1 ? [...curSet][0] : 'USD';
+  const openR  = sent ? opens / sent  : null;
+  const clickR = sent ? clicks / sent : null;
+  const por    = sent ? orders / sent : null;
+  const spamR  = sent ? spamN / sent  : null;
+  const unsubR = sent ? unsubN / sent : null;
+  const set = (id, v) => {{ const e = document.getElementById(id); if (e) e.textContent = v; }};
+  set('au-revenue', fmtRev(rev, cur));
+  set('au-orders',  fmtNum(orders));
+  set('au-rpo',     orders ? fmtMoney2(rev / orders, cur) : '—');
+  set('au-rpm',     sent   ? fmtMoney2(rev / sent, cur)   : '—');
+  set('au-sent',    fmtNum(sent));
+  set('au-sent2',   fmtNum(sent));
+  set('au-open',    fmtPct(openR));   set('au-open-sub',  fmtNum(opens)  + ' opens');
+  set('au-click',   fmtPct(clickR));  set('au-click-sub', fmtNum(clicks) + ' clicks');
+  set('au-por',     fmtPct(por));     set('au-por-sub',   fmtNum(orders) + ' orders');
+  set('au-spam',    fmtPct(spamR));
+  set('au-unsub',   fmtPct(unsubR));
 }}
 
 function setRange(r) {{
@@ -1339,6 +1569,7 @@ function setRange(r) {{
   updateCampDateFilter();
   updateOverviewData();
   updateCampKpis();
+  updateAutoPanels();
   applyFilters();
 }}
 
@@ -1498,14 +1729,15 @@ function applyFilters() {{
   if (catTitle) catTitle.textContent =
     market === 'all' ? 'Flow Categories — GT-US' : 'Flow Categories — ' + market;
 
-  // ── Campaign KPI banner ──
+  // ── Campaign KPI banner + Automation summary panels ──
   updateCampKpis();
+  updateAutoPanels();
 
   // ── Campaign rows (market + channel + date range) ──
   filterDetailTable('camp-tbody', market, channel, true);
 
-  // ── Automation rows (market + channel) ──
-  filterDetailTable('auto-tbody', market, channel, false);
+  // ── Automation rows (market + channel; keeps drill-down state) ──
+  filterAutoTable(market, channel);
 
   // ── Form rows (market only) ──
   filterDetailTable('form-tbody', market, 'all', false);
@@ -1521,6 +1753,37 @@ function filterDetailTable(tbodyId, market, channel, checkDateRange) {{
     const dOk  = !checkDateRange || row.dataset.inRange !== '0';
     row.hidden = !(mOk && chOk && dOk);
     if (!row.hidden) anyVisible = true;
+  }});
+  const empty = tbody.querySelector('tr.empty-row');
+  if (empty) empty.hidden = anyVisible;
+}}
+
+// ── Automation table: flow rows + expandable Email/SMS message sub-rows ────────
+function toggleAuto(el) {{
+  const tr  = el.closest('tr');
+  const rid = tr.dataset.rid;
+  const exp = tr.classList.toggle('expanded');
+  el.textContent = exp ? '▾' : '▸';
+  document.querySelectorAll('#auto-tbody tr.auto-msg').forEach(r => {{
+    if (r.dataset.parent === rid) r.hidden = !(exp && !tr.hidden);
+  }});
+}}
+
+function filterAutoTable(market, channel) {{
+  const tbody = document.getElementById('auto-tbody');
+  if (!tbody) return;
+  const flowVisExp = {{}};
+  let anyVisible = false;
+  tbody.querySelectorAll('tr.auto-flow').forEach(r => {{
+    const mOk  = market  === 'all' || r.dataset.store === market;
+    const chOk = channel === 'all' || (r.dataset.channel && r.dataset.channel.includes(channel));
+    const vis  = mOk && chOk;
+    r.hidden = !vis;
+    if (vis) anyVisible = true;
+    flowVisExp[r.dataset.rid] = vis && r.classList.contains('expanded');
+  }});
+  tbody.querySelectorAll('tr.auto-msg').forEach(r => {{
+    r.hidden = !flowVisExp[r.dataset.parent];
   }});
   const empty = tbody.querySelector('tr.empty-row');
   if (empty) empty.hidden = anyVisible;
@@ -1598,15 +1861,21 @@ function exportCSV() {{
   }});
   L([]);
 
-  // Automations (respecting current market + channel filters)
+  // Automations — flow rows + their Email/SMS message rows (market + channel)
   L(['AUTOMATIONS']);
-  L(['Store','Automation','Category','Channels','Status','Trigger']);
-  document.querySelectorAll('#auto-tbody tr[data-store]').forEach(r => {{
-    if (r.hidden) return;
-    const c = r.querySelectorAll('td');
-    if (c.length < 6) return;
-    L([r.dataset.store, c[1].textContent.trim(), c[2].textContent.trim(),
-       c[3].textContent.trim(), c[4].textContent.trim(), c[5].textContent.trim()]);
+  L(['Store','Level','Automation / Message','Channel','Status','Trigger','Sent','Open%','Click%','Placed Order%','Revenue','Orders','Spam%','Unsub%','Currency']);
+  document.querySelectorAll('#auto-tbody tr.auto-flow').forEach(r => {{
+    if (market !== 'all' && r.dataset.store !== market) return;
+    if (channel !== 'all' && !((r.dataset.channel || '').includes(channel))) return;
+    const d = r.dataset;
+    L([d.store,'flow', d.name, '', d.status, d.trigger,
+       d.sent, pct(d.open), pct(d.ctr), pct(d.po), d.rev, d.orders, pct(d.spam), pct(d.unsub), d.cur]);
+    document.querySelectorAll('#auto-tbody tr.auto-msg').forEach(m => {{
+      if (m.dataset.parent !== d.rid) return;
+      const x = m.dataset;
+      L([d.store,'message', x.label, x.ch, '', '',
+         x.sent, pct(x.open), pct(x.ctr), pct(x.po), x.rev, x.orders, pct(x.spam), pct(x.unsub), x.cur]);
+    }});
   }});
   L([]);
 
