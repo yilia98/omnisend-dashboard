@@ -457,7 +457,8 @@ def main():
                 "segments":     {"count": 0, "plus": False},
                 "campaigns":    [],
                 "camp_stats":   {},
-                "auto_stats":   {"flow": {}, "msg": {}},
+                "auto_stats_30": {"flow": {}, "msg": {}},
+                "auto_stats_7":  {"flow": {}, "msg": {}},
                 "forms":        [],
             })
             continue
@@ -472,7 +473,8 @@ def main():
             "segments":     fetch_segments(key),
             "campaigns":    fetch_campaigns(key, 30),
             "camp_stats":   fetch_campaign_stats(key, date_from_stat, date_to),
-            "auto_stats":   fetch_automation_stats(key, date_from_stat, date_to),
+            "auto_stats_30": fetch_automation_stats(key, date_from_30, date_to),
+            "auto_stats_7":  fetch_automation_stats(key, date_from_7, date_to),
             "forms":        fetch_forms(key),
         })
 
@@ -537,6 +539,29 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
 
     data_30_json = _json.dumps(_totals_json("30"), ensure_ascii=False)
     data_7_json  = _json.dumps(_totals_json("7"),  ensure_ascii=False)
+
+    # Per-flow + per-message automation stats for 30d / 7d, so the Workflow
+    # Performance table can switch with the time range (filtered to the ids that
+    # actually appear in the table to keep the payload small).
+    def _auto_switch(range_key):
+        out = {}
+        for s in stores:
+            astats = s.get(f"auto_stats_{range_key}", {"flow": {}, "msg": {}})
+            fmap, mmap = astats.get("flow", {}), astats.get("msg", {})
+            wf, wm = {}, {}
+            for row in s["automations"].get("rows", []):
+                aid = row.get("id")
+                if aid in fmap:
+                    wf[aid] = fmap[aid]
+                for m in row.get("messages", []):
+                    mid = m.get("id")
+                    if mid in mmap:
+                        wm[mid] = mmap[mid]
+            out[s["id"]] = {"flow": wf, "msg": wm}
+        return out
+
+    auto_30_json = _json.dumps(_auto_switch("30"), ensure_ascii=False)
+    auto_7_json  = _json.dumps(_auto_switch("7"),  ensure_ascii=False)
 
     # ────────────────────────────────────────────────────────────────────────
     # VIEW 1 — Overview: KPI cards (values updated by JS; show 30d by default)
@@ -771,7 +796,7 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
               <div class="cat-count">{enabled}/{total_c} active</div>
             </div>"""
 
-        astats  = s.get("auto_stats", {"flow": {}, "msg": {}})
+        astats  = s.get("auto_stats_30", {"flow": {}, "msg": {}})  # default render = 30d
         flowmap = astats.get("flow", {})
         msgmap  = astats.get("msg", {})
         cur     = s["currency"]
@@ -821,7 +846,7 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
                 mlabel = html.escape(m.get("title") or f"Step {i}", quote=True)
                 auto_rows_html += f"""
         <tr class="auto-msg" data-parent="{rid}" data-store="{s['id']}" data-cur="{cur}"
-            data-ch="{blab}" data-label="{mlabel}"
+            data-msgid="{m.get('id','')}" data-ch="{blab}" data-label="{mlabel}"
             data-sent="{msent if msent is not None else ''}" data-open="{morate if morate is not None else ''}"
             data-ctr="{mcrate if mcrate is not None else ''}" data-po="{mpo if mpo is not None else ''}"
             data-rev="{mrev if mrev is not None else ''}" data-orders="{morders if morders is not None else ''}"
@@ -1445,6 +1470,8 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
 const STORE_IDS  = {store_ids_js};
 const DATA_30    = {data_30_json};
 const DATA_7     = {data_7_json};
+const AUTO_30    = {auto_30_json};
+const AUTO_7     = {auto_7_json};
 const DISPLAY_30 = "{display_30}";
 const DISPLAY_7  = "{display_7}";
 const RANGE_MIN  = "{range_min}";
@@ -1570,7 +1597,45 @@ function setRange(r) {{
   updateOverviewData();
   updateCampKpis();
   updateAutoPanels();
+  updateAutoTable();
   applyFilters();
+}}
+
+// ── Workflow Performance table: swap per-flow & per-message values by range ────
+function autoStatsFor() {{ return currentRange === '7' ? AUTO_7 : AUTO_30; }}  // custom → 30d
+
+function fillAutoRow(r, st, cur) {{
+  const sent = st.sent, orate = st.openRate, crate = st.clickRate;
+  const rev = st.revenue, orders = st.orders, unsub = st.unsubRate, spam = st.spamRate;
+  const po = (orders != null && sent) ? orders / sent : null;
+  const c = r.querySelectorAll('td');
+  if (c.length < 12) return;
+  c[4].textContent  = fmtNum(sent);
+  c[5].innerHTML    = heat(openCls(orate), fmtPct(orate));
+  c[6].innerHTML    = heat(ctrCls(crate), fmtPct(crate));
+  c[7].textContent  = fmtPct(po);
+  c[8].textContent  = fmtRev(rev, cur);
+  c[9].textContent  = fmtNum(orders);
+  c[10].textContent = fmtPct(spam);
+  c[11].innerHTML   = heat(unsubCls(unsub), fmtPct(unsub));
+  const d = r.dataset;
+  d.sent = sent ?? ''; d.open = orate ?? ''; d.ctr = crate ?? ''; d.po = po ?? '';
+  d.rev = rev ?? ''; d.orders = orders ?? ''; d.spam = spam ?? ''; d.unsub = unsub ?? '';
+}}
+
+function updateAutoTable() {{
+  const A = autoStatsFor();
+  document.querySelectorAll('#auto-tbody tr.auto-flow').forEach(r => {{
+    const rid = r.dataset.rid || '';
+    const sep = rid.indexOf('::');
+    const store = rid.slice(0, sep), aid = rid.slice(sep + 2);
+    const st = (A[store] && A[store].flow[aid]) || {{}};
+    fillAutoRow(r, st, r.dataset.cur);
+  }});
+  document.querySelectorAll('#auto-tbody tr.auto-msg').forEach(r => {{
+    const st = (A[r.dataset.store] && A[r.dataset.store].msg[r.dataset.msgid]) || {{}};
+    fillAutoRow(r, st, r.dataset.cur);
+  }});
 }}
 
 function applyCustomRange() {{
