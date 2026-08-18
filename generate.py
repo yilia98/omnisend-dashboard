@@ -1165,6 +1165,13 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
   tr.auto-msg:hover td {{ background: #f5f8ff; }}
   .auto-msg-label {{ color: #475569; padding-left: 18px !important; }}
 
+  /* ── Table toolbar + sortable headers ── */
+  .table-toolbar {{ display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }}
+  .table-toolbar label {{ font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }}
+  th.sortable {{ cursor: pointer; user-select: none; }}
+  th.sortable:hover {{ color: #2563eb; }}
+  .sort-ar {{ font-size: 9px; color: #2563eb; }}
+
   /* ── Legend ── */
   .legend {{ display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: 11px; color: #64748b; }}
   .legend-item {{ display: flex; align-items: center; gap: 5px; }}
@@ -1234,7 +1241,6 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
       <button class="type-btn active" data-type="overview"  onclick="setType('overview')">📊 Overview</button>
       <button class="type-btn"        data-type="campaign"  onclick="setType('campaign')">📧 Campaign</button>
       <button class="type-btn"        data-type="automation" onclick="setType('automation')">⚡ Automation</button>
-      <button class="type-btn"        data-type="form"      onclick="setType('form')">📋 Form</button>
     </div>
   </div>
 
@@ -1319,13 +1325,6 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
     </table>
   </div>
 
-  <div class="section-title"><span class="st-icon">🎯</span> Segment Coverage</div>
-  <div class="panel" id="seg-panel">
-    <div class="panel-head">
-      <span class="panel-head-title">Configured Segments per Store</span>
-    </div>
-{seg_rows}
-  </div>
 
 </div><!-- /view-overview -->
 
@@ -1404,24 +1403,33 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
   </div>
 
   <div class="section-title"><span class="st-icon">⚡</span> Workflow Performance
-    <span style="font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0;font-size:11px">— 点击流程名称展开查看每条 Email / SMS 消息</span>
+    <span style="font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0;font-size:11px">— 点击流程名称展开消息；点击列标题排序</span>
+  </div>
+  <div class="table-toolbar">
+    <label>Status</label>
+    <select class="filter-select" id="auto-status" onchange="applyFilters()">
+      <option value="all">All</option>
+      <option value="enabled">Enabled</option>
+      <option value="disabled">Disabled</option>
+      <option value="draft">Draft</option>
+    </select>
   </div>
   <div class="table-wrap">
-    <table>
+    <table id="auto-table">
       <thead>
         <tr>
-          <th>Market</th>
-          <th>Automation / Message</th>
-          <th>Status</th>
+          <th class="sortable" data-sortkey="market" onclick="sortAutoTable('market')">Market<span class="sort-ar"></span></th>
+          <th class="sortable" data-sortkey="name" onclick="sortAutoTable('name')">Automation / Message<span class="sort-ar"></span></th>
+          <th class="sortable" data-sortkey="status" onclick="sortAutoTable('status')">Status<span class="sort-ar"></span></th>
           <th>Trigger</th>
-          <th class="num">Sent</th>
-          <th>Open%</th>
-          <th>Click%</th>
-          <th class="num">Placed Order%</th>
-          <th class="num">Revenue</th>
-          <th class="num">Orders</th>
-          <th>Spam%</th>
-          <th>Unsub%</th>
+          <th class="num sortable" data-sortkey="sent" onclick="sortAutoTable('sent')">Sent<span class="sort-ar"></span></th>
+          <th class="sortable" data-sortkey="open" onclick="sortAutoTable('open')">Open%<span class="sort-ar"></span></th>
+          <th class="sortable" data-sortkey="ctr" onclick="sortAutoTable('ctr')">Click%<span class="sort-ar"></span></th>
+          <th class="num sortable" data-sortkey="po" onclick="sortAutoTable('po')">Placed Order%<span class="sort-ar"></span></th>
+          <th class="num sortable" data-sortkey="rev" onclick="sortAutoTable('rev')">Revenue<span class="sort-ar"></span></th>
+          <th class="num sortable" data-sortkey="orders" onclick="sortAutoTable('orders')">Orders<span class="sort-ar"></span></th>
+          <th class="sortable" data-sortkey="spam" onclick="sortAutoTable('spam')">Spam%<span class="sort-ar"></span></th>
+          <th class="sortable" data-sortkey="unsub" onclick="sortAutoTable('unsub')">Unsub%<span class="sort-ar"></span></th>
         </tr>
       </thead>
       <tbody id="auto-tbody">{auto_rows_html}</tbody>
@@ -1429,33 +1437,6 @@ def build_html(stores, display_30, display_7, updated_at, range_min="", range_ma
   </div>
 
 </div><!-- /view-automation -->
-
-
-<!-- ═══════════════════════════════════════════════════════════════
-     VIEW: FORM
-═══════════════════════════════════════════════════════════════ -->
-<div id="view-form" class="view">
-
-  <div class="section-title"><span class="st-icon">📋</span> Signup Forms</div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Market</th>
-          <th>Form Name</th>
-          <th>Type</th>
-          <th>Status</th>
-          <th class="num">Views</th>
-          <th>Interaction%</th>
-          <th>Submit%</th>
-          <th>Signup%</th>
-        </tr>
-      </thead>
-      <tbody id="form-tbody">{form_rows}</tbody>
-    </table>
-  </div>
-
-</div><!-- /view-form -->
 
 
   <!-- FOOTER -->
@@ -1636,6 +1617,47 @@ function updateAutoTable() {{
     const st = (A[r.dataset.store] && A[r.dataset.store].msg[r.dataset.msgid]) || {{}};
     fillAutoRow(r, st, r.dataset.cur);
   }});
+  applyAutoSort();  // keep the active sort after values change
+}}
+
+// ── Sortable Workflow Performance headers ─────────────────────────────────────
+let autoSort = {{ key: null, dir: 1 }};
+function sortAutoTable(key) {{
+  if (autoSort.key === key) autoSort.dir = -autoSort.dir;
+  else {{ autoSort.key = key; autoSort.dir = 1; }}
+  document.querySelectorAll('#auto-table th[data-sortkey] .sort-ar').forEach(s => s.textContent = '');
+  const arrow = document.querySelector('#auto-table th[data-sortkey="' + key + '"] .sort-ar');
+  if (arrow) arrow.textContent = autoSort.dir > 0 ? ' ▲' : ' ▼';
+  applyAutoSort();
+}}
+function applyAutoSort() {{
+  if (!autoSort.key) return;
+  const tbody = document.getElementById('auto-tbody');
+  if (!tbody) return;
+  const flows = [...tbody.querySelectorAll('tr.auto-flow')];
+  if (!flows.length) return;
+  const msgs = {{}};
+  tbody.querySelectorAll('tr.auto-msg').forEach(m => {{
+    (msgs[m.dataset.parent] = msgs[m.dataset.parent] || []).push(m);
+  }});
+  const textKey = (autoSort.key === 'name' || autoSort.key === 'status' || autoSort.key === 'market');
+  const val = r => {{
+    if (autoSort.key === 'name')   return (r.dataset.name || '').toLowerCase();
+    if (autoSort.key === 'status') return (r.dataset.status || '').toLowerCase();
+    if (autoSort.key === 'market') return (r.dataset.store || '').toLowerCase();
+    const v = r.dataset[autoSort.key];
+    return (v === '' || v == null) ? -Infinity : parseFloat(v);
+  }};
+  flows.sort((a, b) => {{
+    const va = val(a), vb = val(b);
+    if (va < vb) return -autoSort.dir;
+    if (va > vb) return autoSort.dir;
+    return 0;
+  }});
+  flows.forEach(f => {{
+    tbody.appendChild(f);
+    (msgs[f.dataset.rid] || []).forEach(m => tbody.appendChild(m));
+  }});
 }}
 
 function applyCustomRange() {{
@@ -1773,27 +1795,6 @@ function applyFilters() {{
     }});
   }});
 
-  // Segment bars
-  document.querySelectorAll('#seg-panel .prog-row[data-store]').forEach(el => {{
-    el.hidden = market !== 'all' && el.dataset.store !== market;
-  }});
-
-  // ── Automation health panels ──
-  document.querySelectorAll('#view-automation .prog-row[data-store]').forEach(el => {{
-    el.hidden = market !== 'all' && el.dataset.store !== market;
-  }});
-  document.querySelectorAll('[data-ch]').forEach(el => {{
-    el.hidden = el.dataset.ch !== (market === 'all' ? 'all' : market);
-  }});
-  document.querySelectorAll('.cat-row[data-store]').forEach(el => {{
-    el.hidden = market === 'all'
-      ? el.dataset.store !== 'GT-US'
-      : el.dataset.store !== market;
-  }});
-  const catTitle = document.getElementById('cat-panel-title');
-  if (catTitle) catTitle.textContent =
-    market === 'all' ? 'Flow Categories — GT-US' : 'Flow Categories — ' + market;
-
   // ── Campaign KPI banner + Automation summary panels ──
   updateCampKpis();
   updateAutoPanels();
@@ -1801,11 +1802,8 @@ function applyFilters() {{
   // ── Campaign rows (market + channel + date range) ──
   filterDetailTable('camp-tbody', market, channel, true);
 
-  // ── Automation rows (market + channel; keeps drill-down state) ──
+  // ── Automation rows (market + channel + status; keeps drill-down state) ──
   filterAutoTable(market, channel);
-
-  // ── Form rows (market only) ──
-  filterDetailTable('form-tbody', market, 'all', false);
 }}
 
 function filterDetailTable(tbodyId, market, channel, checkDateRange) {{
@@ -1837,12 +1835,15 @@ function toggleAuto(el) {{
 function filterAutoTable(market, channel) {{
   const tbody = document.getElementById('auto-tbody');
   if (!tbody) return;
+  const statusSel = document.getElementById('auto-status');
+  const status = statusSel ? statusSel.value : 'all';
   const flowVisExp = {{}};
   let anyVisible = false;
   tbody.querySelectorAll('tr.auto-flow').forEach(r => {{
     const mOk  = market  === 'all' || r.dataset.store === market;
     const chOk = channel === 'all' || (r.dataset.channel && r.dataset.channel.includes(channel));
-    const vis  = mOk && chOk;
+    const stOk = status  === 'all' || r.dataset.status === status;
+    const vis  = mOk && chOk && stOk;
     r.hidden = !vis;
     if (vis) anyVisible = true;
     flowVisExp[r.dataset.rid] = vis && r.classList.contains('expanded');
@@ -1903,16 +1904,6 @@ function exportCSV() {{
     L([sid, d.subEmail, d.unsubEmail, d.netGrowth, d.subSms]); }});
   L([]);
 
-  // Segments
-  L(['SEGMENTS']);
-  L(['Store','Configured Segments']);
-  document.querySelectorAll('#seg-panel .prog-row[data-store]').forEach(el => {{
-    if (market !== 'all' && el.dataset.store !== market) return;
-    const c = el.querySelector('.prog-count');
-    L([el.dataset.store, c ? c.textContent.trim() : '']);
-  }});
-  L([]);
-
   // Campaigns (in-range + market + channel)
   L(['CAMPAIGNS (' + rangeLabel + ')']);
   L(['Store','Campaign','Channel','Send Date','Status','Sent','CTR','Open%','Opens','Clicks','Revenue','Orders','Unsub%','Currency']);
@@ -1926,12 +1917,14 @@ function exportCSV() {{
   }});
   L([]);
 
-  // Automations — flow rows + their Email/SMS message rows (market + channel)
+  // Automations — flow rows + their Email/SMS message rows (market + channel + status)
+  const autoStatus = (document.getElementById('auto-status') || {{}}).value || 'all';
   L(['AUTOMATIONS']);
   L(['Store','Level','Automation / Message','Channel','Status','Trigger','Sent','Open%','Click%','Placed Order%','Revenue','Orders','Spam%','Unsub%','Currency']);
   document.querySelectorAll('#auto-tbody tr.auto-flow').forEach(r => {{
     if (market !== 'all' && r.dataset.store !== market) return;
     if (channel !== 'all' && !((r.dataset.channel || '').includes(channel))) return;
+    if (autoStatus !== 'all' && r.dataset.status !== autoStatus) return;
     const d = r.dataset;
     L([d.store,'flow', d.name, '', d.status, d.trigger,
        d.sent, pct(d.open), pct(d.ctr), pct(d.po), d.rev, d.orders, pct(d.spam), pct(d.unsub), d.cur]);
@@ -1941,18 +1934,6 @@ function exportCSV() {{
       L([d.store,'message', x.label, x.ch, '', '',
          x.sent, pct(x.open), pct(x.ctr), pct(x.po), x.rev, x.orders, pct(x.spam), pct(x.unsub), x.cur]);
     }});
-  }});
-  L([]);
-
-  // Forms (respecting current market filter)
-  L(['FORMS']);
-  L(['Store','Form','Type','Status','Views','Interaction%','Submit%','Signup%']);
-  document.querySelectorAll('#form-tbody tr[data-store]').forEach(r => {{
-    if (r.hidden) return;
-    const c = r.querySelectorAll('td');
-    if (c.length < 8) return;
-    L([r.dataset.store, c[1].textContent.trim(), c[2].textContent.trim(), c[3].textContent.trim(),
-       c[4].textContent.trim(), c[5].textContent.trim(), c[6].textContent.trim(), c[7].textContent.trim()]);
   }});
 
   const csv  = String.fromCharCode(0xFEFF) + lines.join('\\r\\n');
