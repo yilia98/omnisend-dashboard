@@ -276,22 +276,33 @@ AUDIENCE_GROUPS = [
 ]
 
 
+def _follow_url(url, key):
+    """GET a full URL (Omnisend next-page URL) with auth headers."""
+    try:
+        r = requests.get(url, headers=_hdrs(key), timeout=20)
+        if r.status_code == 200:
+            return r.json()
+        print(f"  GET {url} → {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        print(f"  GET {url} → {e}")
+    return {}
+
+
 def _count_by_tag(key, tag):
-    """Exact contact count for a tag — uses paging.totalCount if available, else paginates."""
-    data = safe_get(f"{BASE}/v3/contacts", key, {"tag": tag, "limit": 1})
+    """Exact contact count for a tag — uses paging.totalCount if available, else follows next URLs."""
+    data = safe_get(f"{BASE}/v3/contacts", key, {"tag": tag, "limit": 250})
     pg = data.get("paging", {})
     for field in ("totalCount", "total", "count", "totalItems", "total_count"):
         if pg.get(field) is not None:
             return int(pg[field])
-    # Fallback: paginate (up to 10 000 contacts per tag)
-    contacts = data.get("contacts", [])
-    total = len(contacts)
-    after = pg.get("next") or pg.get("cursor")
-    while after and total < 10000:
-        d2 = safe_get(f"{BASE}/v3/contacts", key, {"tag": tag, "limit": 250, "after": after})
-        batch = d2.get("contacts", [])
+    # Fallback: follow next URLs (up to 10 000 contacts per tag)
+    total = len([c for c in data.get("contacts", []) if c])
+    next_url = pg.get("next")
+    while next_url and total < 10000:
+        d2 = _follow_url(next_url, key)
+        batch = [c for c in d2.get("contacts", []) if c]
         total += len(batch)
-        after = d2.get("paging", {}).get("next") or d2.get("paging", {}).get("cursor")
+        next_url = d2.get("paging", {}).get("next")
         if not batch:
             break
     return total
@@ -322,20 +333,19 @@ def fetch_tags(key, max_pages=4):
     """Sample contacts and count tag occurrences."""
     tag_counts = {}
     total_sampled = 0
-    params = {"limit": 250}
+    data = safe_get(f"{BASE}/v3/contacts", key, {"limit": 250})
     for _ in range(max_pages):
-        data = safe_get(f"{BASE}/v3/contacts", key, params)
-        contacts = data.get("contacts", [])
+        contacts = [c for c in data.get("contacts", []) if c]
         if not contacts:
             break
         total_sampled += len(contacts)
         for c in contacts:
-            for tag in c.get("tags", []):
+            for tag in (c.get("tags") or []):
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
-        paging = data.get("paging", {})
-        if not paging.get("next"):
+        next_url = data.get("paging", {}).get("next")
+        if not next_url:
             break
-        params = {"limit": 250, "after": paging.get("next", "")}
+        data = _follow_url(next_url, key)
     tags = sorted(tag_counts.items(), key=lambda x: -x[1])
     return {"tags": [{"tag": t, "count": c} for t, c in tags], "sampled": total_sampled}
 
