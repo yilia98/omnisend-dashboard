@@ -245,6 +245,79 @@ def fetch_segments(key):
     return {"count": len(segs), "plus": more}
 
 
+# ─── Audience tag config ─────────────────────────────────────────────────────
+AUDIENCE_GROUPS = [
+    {"group": "Waitlist",  "icon": "⏳", "color": "#2563eb", "bg": "#eff6ff",
+     "parent": "grandflux_waitlist",
+     "children": [
+         {"tag": "grandflux_edm_waitlist",     "label": "EDM"},
+         {"tag": "grandflux_social_waitlist",   "label": "Social"},
+         {"tag": "grandflux_kol_waitlist",      "label": "KOL"},
+         {"tag": "grandflux_paid_waitlist",     "label": "Paid"},
+         {"tag": "grandflux_pr_waitlist",       "label": "PR"},
+         {"tag": "grandflux_affilate_waitlist", "label": "Affiliate"},
+     ]},
+    {"group": "Founder",   "icon": "🚀", "color": "#7c3aed", "bg": "#f5f3ff",
+     "parent": "grandflux_founder",
+     "children": [
+         {"tag": "grandflux_edm_founder",      "label": "EDM"},
+         {"tag": "grandflux_social_founder",    "label": "Social"},
+         {"tag": "grandflux_kol_founder",       "label": "KOL"},
+         {"tag": "grandflux_paid_founder",      "label": "Paid"},
+         {"tag": "grandflux_pr_founder",        "label": "PR"},
+         {"tag": "grandflux_affilate_founder",  "label": "Affiliate"},
+     ]},
+    {"group": "Survey",    "icon": "📝", "color": "#16a34a", "bg": "#f0fdf4",
+     "parent": "grandflux_survey",
+     "children": [
+         {"tag": "grandflux_survey_v1", "label": "v1"},
+         {"tag": "grandflux_survey_v2", "label": "v2"},
+     ]},
+]
+
+
+def _count_by_tag(key, tag):
+    """Exact contact count for a tag — uses paging.totalCount if available, else paginates."""
+    data = safe_get(f"{BASE}/v3/contacts", key, {"tag": tag, "limit": 1})
+    pg = data.get("paging", {})
+    for field in ("totalCount", "total", "count", "totalItems", "total_count"):
+        if pg.get(field) is not None:
+            return int(pg[field])
+    # Fallback: paginate (up to 10 000 contacts per tag)
+    contacts = data.get("contacts", [])
+    total = len(contacts)
+    after = pg.get("next") or pg.get("cursor")
+    while after and total < 10000:
+        d2 = safe_get(f"{BASE}/v3/contacts", key, {"tag": tag, "limit": 250, "after": after})
+        batch = d2.get("contacts", [])
+        total += len(batch)
+        after = d2.get("paging", {}).get("next") or d2.get("paging", {}).get("cursor")
+        if not batch:
+            break
+    return total
+
+
+def fetch_audience(key):
+    """Fetch exact contact counts for all grandflux audience tag groups."""
+    result = []
+    for grp in AUDIENCE_GROUPS:
+        parent_count = _count_by_tag(key, grp["parent"])
+        children = []
+        for ch in grp["children"]:
+            children.append({"tag": ch["tag"], "label": ch["label"],
+                              "count": _count_by_tag(key, ch["tag"])})
+        result.append({
+            "group":        grp["group"],
+            "icon":         grp["icon"],
+            "color":        grp["color"],
+            "bg":           grp["bg"],
+            "parent":       grp["parent"],
+            "parent_count": parent_count,
+            "children":     children,
+        })
+    return result
+
+
 def fetch_tags(key, max_pages=4):
     """Sample contacts and count tag occurrences."""
     tag_counts = {}
@@ -329,6 +402,7 @@ def main():
     empty_growth    = {"subscribedEmail": 0, "unsubscribedEmail": 0, "subscribedSms": 0}
     empty_auto      = {"total": 0, "active": 0, "by_status": {}, "by_cat": {}, "ch_msgs": {}, "rows": []}
     empty_tags      = {"tags": [], "sampled": 0}
+    empty_audience  = []
 
     for s in STORES:
         key = os.environ.get(s["key_env"], "")
@@ -344,6 +418,7 @@ def main():
                 "campaigns":    [],
                 "forms":        [],
                 "tags":         empty_tags,
+                "audience":     empty_audience,
             })
             continue
 
@@ -358,6 +433,7 @@ def main():
             "campaigns":    fetch_campaigns(key, 30),
             "forms":        fetch_forms(key),
             "tags":         fetch_tags(key),
+            "audience":     fetch_audience(key),
         })
 
     html = build_html(store_data, display_30, display_7, updated_at)
@@ -701,6 +777,20 @@ def build_html(stores, display_30, display_7, updated_at):
         for s in stores
     }, ensure_ascii=False)
 
+    # Audience data JSON — per store, list of group objects
+    audience_data_js = _json2.dumps({
+        s["id"]: s.get("audience", [])
+        for s in stores
+    }, ensure_ascii=False)
+
+    # Audience group config for JS (no counts — just structure)
+    audience_groups_js = _json2.dumps([
+        {"group": g["group"], "icon": g["icon"], "color": g["color"], "bg": g["bg"]}
+        for g in AUDIENCE_GROUPS
+    ], ensure_ascii=False)
+
+    updated_at_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     # ────────────────────────────────────────────────────────────────────────
     # Assemble HTML
     # ────────────────────────────────────────────────────────────────────────
@@ -930,6 +1020,46 @@ def build_html(stores, display_30, display_7, updated_at):
   .tc-item:hover {{ opacity: .8; }}
   .tc-count {{ font-size: 10px; font-weight: 400; opacity: .75; }}
 
+  /* ── Audience view ── */
+  .aud-grid {{ display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }}
+  @media (max-width: 860px) {{ .aud-grid {{ grid-template-columns: 1fr; }} }}
+  .aud-kpi {{
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 18px 20px 14px; border-top-width: 3px;
+  }}
+  .aud-kpi-label {{ font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .6px; color: #94a3b8; margin-bottom: 6px; }}
+  .aud-kpi-val {{ font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 12px; }}
+  .aud-kpi-sub {{ font-size: 11px; color: #64748b; margin-bottom: 10px; }}
+  .aud-bar-row {{
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px;
+  }}
+  .aud-bar-label {{ width: 70px; flex-shrink: 0; color: #374151; font-weight: 600; }}
+  .aud-bar-track {{ flex: 1; height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; }}
+  .aud-bar-fill  {{ height: 100%; border-radius: 3px; transition: width .4s; }}
+  .aud-bar-num   {{ width: 48px; text-align: right; color: #64748b; flex-shrink: 0; }}
+
+  .aud-store-panel {{
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 14px; overflow: hidden;
+  }}
+  .aud-store-head {{
+    padding: 11px 16px; border-bottom: 1px solid #f1f5f9;
+    display: flex; align-items: center; gap: 10px; background: #fafbfc;
+  }}
+  .aud-store-name {{ font-size: 13px; font-weight: 700; color: #0f172a; }}
+  .aud-groups {{ display: grid; grid-template-columns: repeat(3,1fr); gap: 0; }}
+  @media (max-width: 860px) {{ .aud-groups {{ grid-template-columns: 1fr; }} }}
+  .aud-group {{
+    padding: 14px 16px; border-right: 1px solid #f1f5f9;
+  }}
+  .aud-group:last-child {{ border-right: none; }}
+  .aud-group-head {{
+    display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+  }}
+  .aud-group-icon {{ font-size: 14px; }}
+  .aud-group-title {{ font-size: 12px; font-weight: 700; color: #0f172a; }}
+  .aud-group-total {{ margin-left: auto; font-size: 13px; font-weight: 800; }}
+
   /* ── Legend ── */
   .legend {{ display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: 11px; color: #64748b; }}
   .legend-item {{ display: flex; align-items: center; gap: 5px; }}
@@ -1000,6 +1130,7 @@ def build_html(stores, display_30, display_7, updated_at):
       <button class="type-btn"        data-type="automation" onclick="setType('automation')">⚡ Automation</button>
       <button class="type-btn"        data-type="form"      onclick="setType('form')">📋 Form</button>
       <button class="type-btn"        data-type="tags"      onclick="setType('tags')">🏷️ Tags</button>
+      <button class="type-btn"        data-type="audience"  onclick="setType('audience')">🎯 Audience</button>
     </div>
   </div>
 </div>
@@ -1216,6 +1347,27 @@ def build_html(stores, display_30, display_7, updated_at):
 </div><!-- /view-tags -->
 
 
+<!-- ═══════════════════════════════════════════════════════════════
+     VIEW: AUDIENCE
+═══════════════════════════════════════════════════════════════ -->
+<div id="view-audience" class="view">
+
+  <div class="section-title"><span class="st-icon">🎯</span> Grandflux Audience Overview
+    <span style="font-size:11px;font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0">
+      — data as of {updated_at}
+    </span>
+  </div>
+
+  <!-- KPI summary (filled by JS) -->
+  <div class="aud-grid" id="aud-kpi-row"></div>
+
+  <!-- Per-store breakdown (filled by JS) -->
+  <div class="section-title"><span class="st-icon">🏪</span> Breakdown by Store</div>
+  <div id="aud-stores-wrap"></div>
+
+</div><!-- /view-audience -->
+
+
   <!-- FOOTER -->
   <div class="footer">
     <div>Omnisend Multi-Store · 7 brands · Giraffe Tools &amp; Gitryin US</div>
@@ -1225,12 +1377,14 @@ def build_html(stores, display_30, display_7, updated_at):
 </div><!-- /page -->
 
 <script>
-const STORE_IDS  = {store_ids_js};
-const DATA_30    = {data_30_json};
-const DATA_7     = {data_7_json};
-const TAGS_DATA  = {tags_data_js};
-const DISPLAY_30 = "{display_30}";
-const DISPLAY_7  = "{display_7}";
+const STORE_IDS     = {store_ids_js};
+const DATA_30       = {data_30_json};
+const DATA_7        = {data_7_json};
+const TAGS_DATA     = {tags_data_js};
+const AUD_DATA      = {audience_data_js};
+const AUD_GROUPS    = {audience_groups_js};
+const DISPLAY_30    = "{display_30}";
+const DISPLAY_7     = "{display_7}";
 
 let currentType  = 'overview';
 let currentRange = '30';
@@ -1438,6 +1592,9 @@ function applyFilters() {{
 
   // ── Tags rows + cloud ──
   filterTagsTable(market);
+
+  // ── Audience ──
+  renderAudience(market);
 }}
 
 function filterDetailTable(tbodyId, market, channel, checkDateRange) {{
@@ -1499,11 +1656,102 @@ function filterTagsTable(market) {{
   renderTagCloud(market);
 }}
 
+// ── Audience rendering ───────────────────────────────────────────────────────
+function renderAudience(market) {{
+  const ids = market === 'all' ? STORE_IDS : [market];
+
+  // Aggregate KPIs across selected stores
+  const kpis = {{}};   // group -> total parent_count
+  const childKpis = {{}};  // group -> {{label -> total}}
+  AUD_GROUPS.forEach(g => {{
+    kpis[g.group] = 0;
+    childKpis[g.group] = {{}};
+  }});
+
+  ids.forEach(sid => {{
+    const groups = AUD_DATA[sid] || [];
+    groups.forEach(g => {{
+      if (kpis[g.group] !== undefined) {{
+        kpis[g.group] += g.parent_count || 0;
+        (g.children || []).forEach(ch => {{
+          childKpis[g.group][ch.label] = (childKpis[g.group][ch.label] || 0) + (ch.count || 0);
+        }});
+      }}
+    }});
+  }});
+
+  // Render KPI cards
+  const kpiRow = document.getElementById('aud-kpi-row');
+  if (kpiRow) {{
+    kpiRow.innerHTML = AUD_GROUPS.map(g => {{
+      const total = kpis[g.group] || 0;
+      const children = childKpis[g.group] || {{}};
+      const maxChild = Math.max(...Object.values(children), 1);
+      const bars = Object.entries(children)
+        .sort((a,b) => b[1]-a[1])
+        .map(([label, cnt]) => {{
+          const w = Math.round(cnt / maxChild * 100);
+          return `<div class="aud-bar-row">
+            <div class="aud-bar-label">${{label}}</div>
+            <div class="aud-bar-track"><div class="aud-bar-fill" style="width:${{Math.max(w,2)}}%;background:${{g.color}}"></div></div>
+            <div class="aud-bar-num">${{fmtNum(cnt)}}</div>
+          </div>`;
+        }}).join('');
+      return `<div class="aud-kpi" style="border-top-color:${{g.color}};background:${{g.bg}}">
+        <div class="aud-kpi-label">${{g.icon}} ${{g.group}}</div>
+        <div class="aud-kpi-val" style="color:${{g.color}}">${{fmtNum(total)}}</div>
+        <div class="aud-kpi-sub">contacts with grandflux_${{g.group.toLowerCase()}} tag</div>
+        ${{bars}}
+      </div>`;
+    }}).join('');
+  }}
+
+  // Render per-store breakdown
+  const wrap = document.getElementById('aud-stores-wrap');
+  if (!wrap) return;
+  const storeHtml = ids.map(sid => {{
+    const sInfo = {{"GT-US":"🇺🇸","GT-CA":"🇨🇦","GT-UK":"🇬🇧","GT-AU":"🇦🇺","GT-DE":"🇩🇪","GT-JP":"🇯🇵","Gitryin-US":"⚡"}};
+    const flag = sInfo[sid] || '';
+    const groups = AUD_DATA[sid] || [];
+    if (!groups.length) return '';
+    const hasData = groups.some(g => g.parent_count > 0);
+    const groupsHtml = groups.map(g => {{
+      const maxChild = Math.max(...(g.children||[]).map(c=>c.count), 1);
+      const bars = (g.children||[]).map(ch => {{
+        const w = Math.round((ch.count||0) / maxChild * 100);
+        return `<div class="aud-bar-row">
+          <div class="aud-bar-label" style="width:64px">${{ch.label}}</div>
+          <div class="aud-bar-track"><div class="aud-bar-fill" style="width:${{Math.max(w,1)}}%;background:${{g.color}}80"></div></div>
+          <div class="aud-bar-num">${{fmtNum(ch.count)}}</div>
+        </div>`;
+      }}).join('');
+      return `<div class="aud-group">
+        <div class="aud-group-head">
+          <span class="aud-group-icon">${{g.icon}}</span>
+          <span class="aud-group-title">${{g.group}}</span>
+          <span class="aud-group-total" style="color:${{g.color}}">${{fmtNum(g.parent_count)}}</span>
+        </div>
+        ${{bars}}
+      </div>`;
+    }}).join('');
+    return `<div class="aud-store-panel" data-store="${{sid}}">
+      <div class="aud-store-head">
+        <span style="font-size:16px">${{flag}}</span>
+        <span class="aud-store-name">${{sid}}</span>
+        ${{!hasData ? '<span style="font-size:11px;color:#94a3b8">No grandflux contacts</span>' : ''}}
+      </div>
+      ${{hasData ? `<div class="aud-groups">${{groupsHtml}}</div>` : ''}}
+    </div>`;
+  }}).join('');
+  wrap.innerHTML = storeHtml || '<div style="padding:20px;color:#94a3b8;font-size:13px">No audience data found for this store.</div>';
+}}
+
 // init
 updateCampDateFilter();
 updateCampKpis();
 applyFilters();
 renderTagCloud('all');
+renderAudience('all');
 </script>
 </body>
 </html>"""
